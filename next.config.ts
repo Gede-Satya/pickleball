@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Baris ajaib untuk menyelamatkan Prisma dari Turbopack
+  serverExternalPackages: ["@prisma/client", "bcryptjs"], 
 };
 
 export default nextConfig;
