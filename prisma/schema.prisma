@@ -51,3 +51,65 @@ model Comment {
   postId Int
   post   Post @relation(fields: [postId], references: [id])
 }
+
+// Definisi Status Turnamen biar rapi dan nggak salah ketik
+enum TournamentStatus {
+  DRAFT       // Masih dikonsep, belum tayang
+  UPCOMING    // Akan datang / Pendaftaran buka
+  ONGOING     // Sedang berlangsung
+  COMPLETED   // Sudah selesai
+  CANCELED    // Dibatalkan
+}
+
+model Tournament {
+  id              Int      @id @default(autoincrement())
+  name            String   // Contoh: "Jakarta Pickleball Open 2026"
+  slug            String   @unique // Untuk URL: "jakarta-pickleball-open-2026"
+  description     String?  @db.Text // Deskripsi/Aturan lengkap (Bisa kosong/opsional)
+  location        String   // Tempat pertandingan
+  category        String?  // Contoh: "Ganda Putra Umum"
+  image           String?
+  // Waktu Pelaksanaan
+  startDate       DateTime
+  endDate         DateTime
+
+
+  // Detail Tambahan
+  registrationFee Int      @default(0) // Biaya daftar (pakai Int untuk Rupiah)
+  prizePool       String?  // Total hadiah, misal: "Rp 50.000.000"
+  maxParticipants Int      // Batas maksimal peserta/tim
+  
+  // Status turnamen menggunakan Enum di atas
+  status          TournamentStatus @default(DRAFT)
+
+  // Otomatis mencatat kapan data dibuat dan diupdate
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  players         Player[]
+}
+
+model Club {
+  id          Int      @id @default(autoincrement())
+  name        String   // Contoh: "Jakarta Pickleball Club"
+  description String?  @db.Text // Deskripsi atau info jadwal latihan
+  logo        String?  // Link gambar/logo klub
+  location    String?  // Lokasi/Markas bermain
+  contact     String?  // Nomor WA atau IG untuk dihubungi
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Player {
+  id          Int      @id @default(autoincrement())
+  fullName    String   // Nama lengkap pemain
+  schoolName  String   // Nama sekolah / instansi
+  phoneNumber String   // No HP (Pakai String karena no HP bisa diawali '0' atau '+62')
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tournamentId  Int
+  tournament    Tournament @relation(fields: [tournamentId], references: [id])
+}

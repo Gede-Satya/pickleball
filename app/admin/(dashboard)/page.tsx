@@ -1,6 +1,20 @@
 import React from "react";
+import { PrismaClient } from '@prisma/client';
 
-export default function AdminDashboard() {
+
+const prisma = new PrismaClient();
+
+export default async function AdminDashboard() {
+
+  // Menarik data jumlah baris dari MySQL secara paralel agar loading lebih cepat
+  // Asumsi: Kamu sudah membuat model di schema.prisma untuk tabel-tabel ini
+  const [totalTurnamen, totalPemain, totalBerita, totalClub] = await Promise.all([
+    prisma.tournament.count(),                     // Menghitung total turnamen
+    prisma.player.count(),                         // Menghitung total pemain
+    prisma.post.count(),                           // Menghitung total artikel/berita
+    prisma.club.count()                            // Menghitung total club afiliasi
+  ]);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Ringkasan Sistem</h1>
@@ -15,7 +29,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-sm text-slate-500 font-medium">Total Turnamen</p>
-            <p className="text-2xl font-bold text-slate-900">12</p>
+            <p className="text-2xl font-bold text-slate-900">{totalTurnamen}</p>
           </div>
         </div>
 
@@ -26,7 +40,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-sm text-slate-500 font-medium">Pemain Terdaftar</p>
-            <p className="text-2xl font-bold text-slate-900">148</p>
+            <p className="text-2xl font-bold text-slate-900">{totalPemain}</p>
           </div>
         </div>
 
@@ -37,7 +51,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-sm text-slate-500 font-medium">Berita Aktif</p>
-            <p className="text-2xl font-bold text-slate-900">24</p>
+            <p className="text-2xl font-bold text-slate-900">{totalBerita}</p>
           </div>
         </div>
 
@@ -48,7 +62,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-sm text-slate-500 font-medium">Club Afiliasi</p>
-            <p className="text-2xl font-bold text-slate-900">8</p>
+            <p className="text-2xl font-bold text-slate-900">{totalClub}</p>
           </div>
         </div>
 

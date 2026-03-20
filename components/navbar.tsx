@@ -1,10 +1,31 @@
 "use client"; // Wajib untuk fitur klik menu HP & Dropdown
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
+
+
 export default function Navbar() {
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [lastScroll, setLastScroll] = useState(0);
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScroll = window.scrollY;
+  
+      if (currentScroll > lastScroll && currentScroll > 50) {
+        setShowNavbar(false); // scroll ke bawah
+      } else {
+        setShowNavbar(true); // scroll ke atas
+      }
+  
+      setLastScroll(currentScroll);
+    };
+  
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScroll]);
   // Catatan state untuk menu HP dan Dropdown
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -17,7 +38,12 @@ export default function Navbar() {
 
   return (
     // Mempertahankan desain asli kamu: Putih transparan + Efek blur
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b text-slate-900">
+  <nav
+  className={`fixed top-0 left-0 w-full z-50 
+  bg-white/70 backdrop-blur-lg shadow-sm text-slate-900 
+  transition-all duration-300
+  ${showNavbar ? "translate-y-0" : "-translate-y-full"}`}
+>
       <div className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
         
         {/* KIRI: LOGO (Persis seperti aslimu) */}
@@ -46,7 +72,7 @@ export default function Navbar() {
         {/* TENGAH/KANAN: MENU DESKTOP (Sembunyi di HP) */}
         <div className="hidden md:flex gap-6 font-medium items-center">
           <Link href="/" className="hover:text-yellow-600 transition-colors">
-            Blog
+            Beranda
           </Link>
           <Link href="/tournament" className="hover:text-yellow-600 transition-colors">
             Turnamen
@@ -66,7 +92,7 @@ export default function Navbar() {
               <Link href="/struktur" className="px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-yellow-600 border-b border-slate-100 transition-colors">
                 Struktur Organisasi
               </Link>
-              <Link href="/club" className="px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-yellow-600 transition-colors">
+              <Link href="/clubs" className="px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-yellow-600 transition-colors">
                 Daftar Club
               </Link>
             </div>
@@ -125,7 +151,7 @@ export default function Navbar() {
                   <Link href="/struktur" onClick={closeMobileMenu} className="text-sm font-medium text-slate-600 hover:text-yellow-600">
                     Struktur Organisasi
                   </Link>
-                  <Link href="/club" onClick={closeMobileMenu} className="text-sm font-medium text-slate-600 hover:text-yellow-600">
+                  <Link href="/clubs" onClick={closeMobileMenu} className="text-sm font-medium text-slate-600 hover:text-yellow-600">
                     Daftar Club
                   </Link>
                 </div>

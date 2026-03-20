@@ -29,7 +29,7 @@ export default function AdminLayout({
             <span>🏆</span> Turnamen
           </Link>
           <Link
-            href="/admin/articles"
+            href="/admin/posts"
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
           >
             <span>📝</span> Berita & Artikel
