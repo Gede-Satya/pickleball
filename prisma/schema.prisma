@@ -105,7 +105,9 @@ model Player {
   id          Int      @id @default(autoincrement())
   fullName    String   // Nama lengkap pemain
   schoolName  String   // Nama sekolah / instansi
-  phoneNumber String   // No HP (Pakai String karena no HP bisa diawali '0' atau '+62')
+  phoneNumber String   // No HP (Pakai String karena no HP bisa diawali '0' atau '+62') 
+  
+  category String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

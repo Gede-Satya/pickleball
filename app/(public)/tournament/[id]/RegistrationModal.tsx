@@ -60,9 +60,20 @@ export default function RegistrationModal({ tournament }: { tournament: any }) {
               {/* Hidden Input untuk menyimpan ID turnamen secara diam-diam */}
               <input type="hidden" name="tournamentId" value={tournament.id} />
 
-              <div>
+            <div>
                 <label className="text-sm font-semibold text-slate-700 block mb-1">Nama Lengkap Tim/Pemain *</label>
                 <input type="text" name="fullName" required className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400" />
+              </div>
+
+              {/* Input Kategori yang baru ditambahkan */}
+              <div>
+                <label className="text-sm font-semibold text-slate-700 block mb-1">Kategori Pertandingan *</label>
+                <select name="category" required className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400 bg-white">
+                  <option value="" disabled selected>-- Pilih Kategori --</option>
+                  <option value="single">Single (Tunggal)</option>
+                  <option value="double">Double (Ganda)</option>
+                  <option value="double_mix">Double Mix (Ganda Campuran)</option>
+                </select>
               </div>
 
               <div>

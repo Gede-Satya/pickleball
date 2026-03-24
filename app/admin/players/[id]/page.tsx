@@ -1,0 +1,136 @@
+import React from "react";
+import { PrismaClient } from '@prisma/client';
+import { updatePlayer } from '../action'; // Pastikan path-nya '../actions' atau '../action' sesuai file kamu
+import Link from 'next/link';
+
+const prisma = new PrismaClient();
+
+export default async function EditPlayerPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const playerId = parseInt(resolvedParams.id);
+
+  const player = await prisma.player.findUnique({
+    where: { id: playerId }
+  });
+
+  // Tampilan Error
+  if (!player) {
+    return (
+      <div className="max-w-lg mx-auto mt-12 bg-white p-10 rounded-3xl shadow-xl shadow-red-100/50 border border-red-50 text-center animate-in fade-in zoom-in duration-300">
+        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+          <span className="text-4xl">🤔</span>
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Pemain Tidak Ditemukan</h2>
+        <p className="text-slate-500 mb-8 leading-relaxed">Waduh, data pemain ini sepertinya sudah dihapus atau ID-nya salah ketik.</p>
+        <Link href="/admin/players" className="inline-flex items-center justify-center bg-slate-900 text-white px-6 py-3 rounded-xl hover:bg-slate-800 font-medium transition-all hover:shadow-lg hover:-translate-y-0.5">
+          &larr; Kembali ke Daftar
+        </Link>
+      </div>
+    );
+  }
+
+  // Tampilan Form Utama
+  return (
+    <div className="max-w-3xl mx-auto mt-4 bg-white p-8 md:p-10 rounded-[2rem] shadow-xl shadow-slate-200/40 border border-slate-100">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-500/30">
+            🎾
+          </div>
+          <div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Edit Data Pemain</h1>
+            <p className="text-slate-500 mt-1">
+              Mengubah data <span className="font-semibold text-blue-600">{player.fullName}</span>
+            </p>
+          </div>
+        </div>
+        <Link 
+          href="/admin/players" 
+          className="inline-flex items-center px-5 py-2.5 bg-slate-500 text-white rounded-xl hover:bg-slate-600 font-medium transition-all shadow-sm"
+        >
+          ← Kembali
+        </Link>
+      </div>
+
+      {/* Form Section */}
+      <form action={updatePlayer} className="space-y-6">
+        <input type="hidden" name="id" value={player.id} />
+
+        {/* Grid agar layout lebih responsif */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Nama Lengkap (Lebar Penuh) */}
+          <div className="md:col-span-2">
+            <label className="text-sm font-bold text-slate-700 block mb-2">Nama Lengkap Tim/Pemain <span className="text-red-500">*</span></label>
+            <input 
+              type="text" 
+              name="fullName" 
+              defaultValue={player.fullName} 
+              required 
+              placeholder="Masukkan nama lengkap..."
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium" 
+            />
+          </div>
+
+          {/* Kategori (Setengah Lebar) */}
+          <div>
+            <label className="text-sm font-bold text-slate-700 block mb-2">Kategori <span className="text-red-500">*</span></label>
+            <select 
+              name="category" 
+              defaultValue={player.category || ""} 
+              required 
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium cursor-pointer"
+            >
+              <option value="" disabled>-- Pilih Kategori --</option>
+              <option value="single">Single (Tunggal)</option>
+              <option value="double">Double (Ganda)</option>
+              <option value="double_mix">Double Mix (Ganda Campuran)</option>
+            </select>
+          </div>
+
+          {/* Instansi (Setengah Lebar) */}
+          <div>
+            <label className="text-sm font-bold text-slate-700 block mb-2">Instansi / Klub <span className="text-red-500">*</span></label>
+            <input 
+              type="text" 
+              name="schoolName" 
+              defaultValue={player.schoolName} 
+              required 
+              placeholder="Asal sekolah atau klub..."
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium" 
+            />
+          </div>
+
+          {/* No WhatsApp (Lebar Penuh) */}
+          <div className="md:col-span-2">
+            <label className="text-sm font-bold text-slate-700 block mb-2">Nomor WhatsApp <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">📱</span>
+              <input 
+                type="tel" 
+                name="phoneNumber" 
+                defaultValue={player.phoneNumber} 
+                required 
+                placeholder="Contoh: 081234567890"
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-green-500/15 focus:border-green-500 transition-all outline-none text-slate-700 font-medium" 
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tombol Simpan */}
+        <div className="pt-8 mt-4 border-t border-slate-100">
+          <button 
+            type="submit" 
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-500/30 transition-all hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <span>Simpan Perubahan</span>
+            <span className="text-xl">✨</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

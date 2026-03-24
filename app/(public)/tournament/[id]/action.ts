@@ -11,6 +11,7 @@ export async function registerPlayer(formData: FormData) {
   const fullName = formData.get('fullName') as string
   const schoolName = formData.get('schoolName') as string
   const phoneNumber = formData.get('phoneNumber') as string
+  const category = formData.get('category') as string
 
   // Simpan data pendaftar ke tabel Player
   await prisma.player.create({
@@ -19,6 +20,7 @@ export async function registerPlayer(formData: FormData) {
       schoolName,
       phoneNumber,
       tournamentId,
+      category,
     }
   })
 

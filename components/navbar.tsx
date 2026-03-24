@@ -128,7 +128,7 @@ export default function Navbar() {
         <div className="md:hidden bg-white border-t border-slate-100 absolute w-full left-0 top-full shadow-lg">
           <div className="px-4 py-4 flex flex-col space-y-2">
             <Link href="/" onClick={closeMobileMenu} className="block px-3 py-2 rounded-md font-medium text-slate-900 hover:bg-slate-50 hover:text-yellow-600">
-              Blog
+              Beranda
             </Link>
             <Link href="/tournament" onClick={closeMobileMenu} className="block px-3 py-2 rounded-md font-medium text-slate-900 hover:bg-slate-50 hover:text-yellow-600">
               Turnamen
