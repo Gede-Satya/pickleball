@@ -75,6 +75,20 @@ export default async function TournamentDetailPage({
             {tournament.description || "Belum ada deskripsi lengkap."}
           </div>
 
+          {/* 🏆 TOMBOL LIHAT BAGAN TURNAMEN */}
+          <div className="bg-indigo-50 p-6 md:p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-indigo-100 mb-6">
+            <div>
+              <h4 className="text-lg font-bold text-slate-900 mb-1">📊 Bagan & Klasemen</h4>
+              <p className="text-sm text-slate-500">Lihat bagan pertandingan, hasil, dan peringkat pemain dari turnamen ini.</p>
+            </div>
+            <Link 
+              href={`/tournament/${id}/bracket`}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm whitespace-nowrap"
+            >
+              Lihat Bagan →
+            </Link>
+          </div>
+
           {/* 🔥 TOMBOL MODAL PENDAFTARAN (Client Component) */}
           <div className="bg-slate-50 p-6 md:p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-slate-100">
             <div>

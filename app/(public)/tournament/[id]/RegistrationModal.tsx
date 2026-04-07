@@ -68,8 +68,8 @@ export default function RegistrationModal({ tournament }: { tournament: any }) {
               {/* Input Kategori yang baru ditambahkan */}
               <div>
                 <label className="text-sm font-semibold text-slate-700 block mb-1">Kategori Pertandingan *</label>
-                <select name="category" required className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400 bg-white">
-                  <option value="" disabled selected>-- Pilih Kategori --</option>
+                <select name="category" required defaultValue="" className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400 bg-white">
+                  <option value="" disabled>-- Pilih Kategori --</option>
                   <option value="single">Single (Tunggal)</option>
                   <option value="double">Double (Ganda)</option>
                   <option value="double_mix">Double Mix (Ganda Campuran)</option>

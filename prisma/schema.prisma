@@ -61,6 +61,13 @@ enum TournamentStatus {
   CANCELED    // Dibatalkan
 }
 
+// Status Pertandingan
+enum MatchStatus {
+  SCHEDULED   // Belum dimulai
+  ONGOING     // Sedang berlangsung
+  DONE        // Sudah selesai
+}
+
 model Tournament {
   id              Int      @id @default(autoincrement())
   name            String   // Contoh: "Jakarta Pickleball Open 2026"
@@ -87,6 +94,8 @@ model Tournament {
   updatedAt       DateTime @updatedAt
 
   players         Player[]
+  groups          TournamentGroup[]
+  knockoutMatches KnockoutMatch[]
 }
 
 model Club {
@@ -107,11 +116,121 @@ model Player {
   schoolName  String   // Nama sekolah / instansi
   phoneNumber String   // No HP (Pakai String karena no HP bisa diawali '0' atau '+62') 
   
-  category String?
+  category    String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   tournamentId  Int
   tournament    Tournament @relation(fields: [tournamentId], references: [id])
+  
+  seedOrder     Int?       // Urutan seed untuk seeding manual oleh admin
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  nama      String
+  email     String
+  pesan     String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// SISTEM BAGAN TURNAMEN — FASE GRUP (Round-Robin)
+// ============================================================
+
+// Grup dalam turnamen (misal: Grup A, Grup B, dst.)
+model TournamentGroup {
+  id              Int            @id @default(autoincrement())
+  name            String         // "Grup A", "Grup B", dll.
+  
+  tournamentId    Int
+  tournament      Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  
+  category        String         // Kategori: "single", "double", "double_mix"
+  
+  members         GroupMember[]
+  matches         GroupMatch[]
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@index([tournamentId, category])
+}
+
+// Anggota/Pemain dalam grup
+model GroupMember {
+  id              Int              @id @default(autoincrement())
+  
+  groupId         Int
+  group           TournamentGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  playerName      String           // Nama pemain/tim
+  seedOrder       Int              @default(0) // Urutan seed (diatur manual admin)
+  
+  // Statistik untuk ranking otomatis
+  played          Int              @default(0) // Jumlah pertandingan dimainkan
+  wins            Int              @default(0) // Menang
+  losses          Int              @default(0) // Kalah
+  pointsFor       Int              @default(0) // Poin yang dicetak
+  pointsAgainst   Int              @default(0) // Poin yang diterima (kemasukan)
+  pointDiff       Int              @default(0) // Selisih poin (pointsFor - pointsAgainst)
+  rank            Int?                         // Peringkat akhir dalam grup
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@index([groupId])
+}
+
+// Pertandingan dalam grup (round-robin)
+model GroupMatch {
+  id              Int              @id @default(autoincrement())
+  
+  groupId         Int
+  group           TournamentGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  player1Name     String           // Nama pemain 1
+  player2Name     String           // Nama pemain 2
+  score1          Int?             // Skor pemain 1
+  score2          Int?             // Skor pemain 2
+  winnerName      String?          // Nama pemenang (null jika belum selesai)
+  
+  status          MatchStatus      @default(SCHEDULED)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@index([groupId])
+}
+
+// ============================================================
+// SISTEM BAGAN TURNAMEN — FASE GUGUR (Knockout)
+// ============================================================
+
+model KnockoutMatch {
+  id              Int              @id @default(autoincrement())
+  
+  tournamentId    Int
+  tournament      Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  
+  category        String           // Kategori turnamen untuk mengaitkan bagan ini
+  
+  roundText       String           // Nama Ronde: "Perempat Final", "Semi Final", "Final"
+  matchOrder      Int              // Urutannya di bracket (visual order)
+  
+  player1Name     String?          // Bisa diedit manual oleh admin / diisi otomatis saat generate
+  player2Name     String?          
+  score1          Int?
+  score2          Int?
+  winnerName      String?
+  
+  nextMatchId     Int?             // Mengarah ke Match ID ronde selanjutnya
+  
+  status          MatchStatus      @default(SCHEDULED)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@index([tournamentId, category])
 }
