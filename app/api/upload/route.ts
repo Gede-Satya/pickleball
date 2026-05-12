@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises"; // 🔥 Tambahkan mkdir di sini
 import path from "path";
+import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 export async function POST(req: Request) {
   try {
@@ -8,7 +9,7 @@ export async function POST(req: Request) {
     const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json({ error: "Tidak ada file yang diunggah" }, { status: 400 });
+      return errorResponse("Tidak ada file yang diunggah ⚠️", 400, "BAD_REQUEST");
     }
 
     // 1. Ubah file menjadi format Buffer
@@ -32,13 +33,10 @@ export async function POST(req: Request) {
     // 6. Kembalikan URL gambar aslinya
     const imageUrl = `/uploads/${filename}`;
 
-    return NextResponse.json({ url: imageUrl });
+    return successResponse("Gambar berhasil diunggah 🖼️", { url: imageUrl });
 
   } catch (error) {
     console.error("Gagal mengunggah gambar:", error);
-    return NextResponse.json(
-      { error: "Gagal memproses gambar di server" },
-      { status: 500 }
-    );
+    return errorResponse("Gagal memproses gambar di server ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }

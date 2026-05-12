@@ -1,9 +1,7 @@
 import React from "react";
-import { PrismaClient } from '@prisma/client';
-import { updatePlayer } from '../action'; // Pastikan path-nya '../actions' atau '../action' sesuai file kamu
+import { prisma } from '@/lib/prisma';
+import { updatePlayer } from '../action';
 import Link from 'next/link';
-
-const prisma = new PrismaClient();
 
 export default async function EditPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -74,19 +72,44 @@ export default async function EditPlayerPage({ params }: { params: Promise<{ id:
             />
           </div>
 
-          {/* Kategori (Setengah Lebar) */}
+          {/* Grade */}
           <div>
-            <label className="text-sm font-bold text-slate-700 block mb-2">Kategori <span className="text-red-500">*</span></label>
-            <select 
-              name="category" 
-              defaultValue={player.category || ""} 
-              required 
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium cursor-pointer"
+            <label className="text-sm font-bold text-slate-700 block mb-2">Grade</label>
+            <select
+              name="grade"
+              defaultValue={player.grade}
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium"
             >
-              <option value="" disabled>-- Pilih Kategori --</option>
-              <option value="single">Single (Tunggal)</option>
-              <option value="double">Double (Ganda)</option>
-              <option value="double_mix">Double Mix (Ganda Campuran)</option>
+              <option value="SD">SD</option>
+              <option value="SMP">SMP</option>
+              <option value="SMA">SMA</option>
+            </select>
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label className="text-sm font-bold text-slate-700 block mb-2">Gender</label>
+            <select
+              name="gender"
+              defaultValue={player.gender}
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium"
+            >
+              <option value="MALE">Putra (MALE)</option>
+              <option value="FEMALE">Putri (FEMALE)</option>
+            </select>
+          </div>
+
+          {/* MatchType */}
+          <div className="md:col-span-2">
+            <label className="text-sm font-bold text-slate-700 block mb-2">Tipe Pertandingan</label>
+            <select
+              name="matchType"
+              defaultValue={player.matchType}
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium"
+            >
+              <option value="SINGLE">SINGLE</option>
+              <option value="DOUBLE">DOUBLE</option>
+              <option value="MIXED">MIXED</option>
             </select>
           </div>
 

@@ -29,9 +29,12 @@ export default async function BracketPage({
 
   if (!tournament) return notFound();
 
-  // Ambil kategori unik dari pemain
+  // Ambil kategori unik dari pemain (berdasarkan kombinasi grade+gender+matchType)
   const categories = [
-    ...new Set(tournament.players.map((p) => p.category).filter(Boolean)),
+    ...new Set(tournament.players.map((p) => {
+      if (p.matchType === 'MIXED') return `${p.grade}_MIXED`;
+      return `${p.grade}_${p.gender}_${p.matchType}`;
+    })),
   ] as string[];
 
   return (

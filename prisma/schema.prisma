@@ -68,63 +68,222 @@ enum MatchStatus {
   DONE        // Sudah selesai
 }
 
+// ============================================================
+// ENUM SISTEM KATEGORI BARU
+// ============================================================
+
+// Jenis kelamin pemain
+enum Gender {
+  MALE    // Putra
+  FEMALE  // Putri
+}
+
+// Tingkat / jenjang sekolah
+enum Grade {
+  SD   // Sekolah Dasar
+  SMP  // Sekolah Menengah Pertama
+  SMA  // Sekolah Menengah Atas
+}
+
+// Tipe pertandingan
+enum MatchType {
+  SINGLE  // Tunggal (1 vs 1)
+  DOUBLE  // Ganda (2 vs 2, gender sama)
+  MIXED   // Ganda campuran (1 MALE + 1 FEMALE per tim)
+}
+
+// Status Pool
+enum PoolStatus {
+  OPEN      // Masih bisa menerima anggota baru
+  FULL      // Sudah penuh, siap generate matches
+  COMPLETED // Semua pertandingan pool selesai
+}
+
+// ============================================================
+// TOURNAMENT
+// ============================================================
+
 model Tournament {
-  id              Int      @id @default(autoincrement())
-  name            String   // Contoh: "Jakarta Pickleball Open 2026"
-  slug            String   @unique // Untuk URL: "jakarta-pickleball-open-2026"
-  description     String?  @db.Text // Deskripsi/Aturan lengkap (Bisa kosong/opsional)
-  location        String   // Tempat pertandingan
-  category        String?  // Contoh: "Ganda Putra Umum"
+  id              Int              @id @default(autoincrement())
+  name            String           // Contoh: "Jakarta Pickleball Open 2026"
+  slug            String           @unique // Untuk URL: "jakarta-pickleball-open-2026"
+  description     String?          @db.Text
+  location        String
+  category        String?
   image           String?
-  // Waktu Pelaksanaan
   startDate       DateTime
   endDate         DateTime
-
-
-  // Detail Tambahan
-  registrationFee Int      @default(0) // Biaya daftar (pakai Int untuk Rupiah)
-  prizePool       String?  // Total hadiah, misal: "Rp 50.000.000"
-  maxParticipants Int      // Batas maksimal peserta/tim
-  
-  // Status turnamen menggunakan Enum di atas
+  registrationFee Int              @default(0)
+  prizePool       String?
+  maxParticipants Int
+  poolSize        Int              @default(8) // Jumlah member per pool (default 8)
   status          TournamentStatus @default(DRAFT)
-
-  // Otomatis mencatat kapan data dibuat dan diupdate
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   players         Player[]
+  teams           Team[]
   groups          TournamentGroup[]
   knockoutMatches KnockoutMatch[]
+  pools           Pool[]
 }
 
 model Club {
   id          Int      @id @default(autoincrement())
-  name        String   // Contoh: "Jakarta Pickleball Club"
-  description String?  @db.Text // Deskripsi atau info jadwal latihan
-  logo        String?  // Link gambar/logo klub
-  location    String?  // Lokasi/Markas bermain
-  contact     String?  // Nomor WA atau IG untuk dihubungi
-  
+  name        String
+  description String?  @db.Text
+  logo        String?
+  location    String?
+  contact     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
+// ============================================================
+// MODEL PLAYER — Dengan sistem kategori baru (typed enums)
+// ============================================================
+
 model Player {
-  id          Int      @id @default(autoincrement())
-  fullName    String   // Nama lengkap pemain
-  schoolName  String   // Nama sekolah / instansi
-  phoneNumber String   // No HP (Pakai String karena no HP bisa diawali '0' atau '+62') 
-  
-  category    String?
+  id          Int       @id @default(autoincrement())
+  fullName    String    // Nama lengkap pemain
+  schoolName  String    // Nama sekolah / instansi
+  phoneNumber String    // No HP
+  gender      Gender    // MALE / FEMALE
+  grade       Grade     // SD / SMP / SMA
+  matchType   MatchType // SINGLE / DOUBLE / MIXED
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
 
-  tournamentId  Int
-  tournament    Tournament @relation(fields: [tournamentId], references: [id])
-  
-  seedOrder     Int?       // Urutan seed untuk seeding manual oleh admin
+  seedOrder    Int?   // Urutan seed manual oleh admin
+
+  // Referensi ke Team (untuk DOUBLE & MIXED)
+  teamId       Int?
+  team         Team?  @relation(fields: [teamId], references: [id])
+
+  poolMembers  PoolMember[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ============================================================
+// MODEL TEAM — Untuk DOUBLE & MIXED (2 player per tim)
+// ============================================================
+
+model Team {
+  id           Int       @id @default(autoincrement())
+  name         String    // Nama tim, misal: "Budi & Andi"
+  matchType    MatchType // DOUBLE atau MIXED
+  grade        Grade     // SD / SMP / SMA
+
+  // categoryKey: "SMA_MALE_DOUBLE" atau "SMA_MIXED"
+  categoryKey  String
+
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+
+  players      Player[]
+  poolMembers  PoolMember[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tournamentId, categoryKey])
+}
+
+// ============================================================
+// SISTEM POOL (GROUP STAGE) — Berbasis Kategori Otomatis
+// ============================================================
+
+// Pool adalah grup stage untuk satu kombinasi kategori
+// Contoh: Pool A SMA Putra Single, Pool B SMA Putra Single
+model Pool {
+  id           Int        @id @default(autoincrement())
+  label        String     // "Pool A SMA Putra Single"
+  poolCode     String     // "A", "B", "C" — urutan dalam kategori
+
+  // Key kategori canonical: "SMA_MALE_SINGLE", "SMP_FEMALE_DOUBLE", "SMA_MIXED"
+  categoryKey  String
+
+  grade        Grade
+  gender       Gender?    // null untuk MIXED
+  matchType    MatchType
+
+  maxSize      Int        @default(8)
+  status       PoolStatus @default(OPEN)
+
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  members      PoolMember[]
+  matches      PoolMatch[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tournamentId, categoryKey])
+}
+
+// Anggota pool — player (SINGLE) atau team (DOUBLE/MIXED)
+model PoolMember {
+  id           Int      @id @default(autoincrement())
+
+  poolId       Int
+  pool         Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  memberName   String   // Nama tampilan
+
+  // Referensi ke player (SINGLE) atau team (DOUBLE/MIXED)
+  playerId     Int?
+  player       Player?  @relation(fields: [playerId], references: [id])
+
+  teamId       Int?
+  team         Team?    @relation(fields: [teamId], references: [id])
+
+  // Statistik round-robin
+  played       Int      @default(0)
+  wins         Int      @default(0)
+  losses       Int      @default(0)
+  pointsFor    Int      @default(0)
+  pointsAgainst Int     @default(0)
+  pointDiff    Int      @default(0)
+  rank         Int?     // Peringkat akhir dalam pool
+
+  matchesAsP1  PoolMatch[] @relation("PoolMatchPlayer1")
+  matchesAsP2  PoolMatch[] @relation("PoolMatchPlayer2")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([poolId])
+}
+
+// Pertandingan round-robin antar member dalam pool
+model PoolMatch {
+  id           Int        @id @default(autoincrement())
+
+  poolId       Int
+  pool         Pool       @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  member1Id    Int
+  member1      PoolMember @relation("PoolMatchPlayer1", fields: [member1Id], references: [id])
+
+  member2Id    Int
+  member2      PoolMember @relation("PoolMatchPlayer2", fields: [member2Id], references: [id])
+
+  score1       Int?
+  score2       Int?
+  winnerId     Int?       // ID PoolMember yang menang
+  winnerName   String?
+
+  status       MatchStatus @default(SCHEDULED)
+  matchOrder   Int         @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([poolId])
 }
 
 model Contact {
@@ -136,71 +295,55 @@ model Contact {
 }
 
 // ============================================================
-// SISTEM BAGAN TURNAMEN — FASE GRUP (Round-Robin)
+// SISTEM BAGAN TURNAMEN — FASE GRUP (Round-Robin) [LEGACY]
 // ============================================================
 
-// Grup dalam turnamen (misal: Grup A, Grup B, dst.)
 model TournamentGroup {
-  id              Int            @id @default(autoincrement())
-  name            String         // "Grup A", "Grup B", dll.
-  
-  tournamentId    Int
-  tournament      Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  
-  category        String         // Kategori: "single", "double", "double_mix"
-  
-  members         GroupMember[]
-  matches         GroupMatch[]
-  
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  
+  id           Int            @id @default(autoincrement())
+  name         String
+  tournamentId Int
+  tournament   Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category     String
+  members      GroupMember[]
+  matches      GroupMatch[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
   @@index([tournamentId, category])
 }
 
-// Anggota/Pemain dalam grup
 model GroupMember {
-  id              Int              @id @default(autoincrement())
-  
-  groupId         Int
-  group           TournamentGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  
-  playerName      String           // Nama pemain/tim
-  seedOrder       Int              @default(0) // Urutan seed (diatur manual admin)
-  
-  // Statistik untuk ranking otomatis
-  played          Int              @default(0) // Jumlah pertandingan dimainkan
-  wins            Int              @default(0) // Menang
-  losses          Int              @default(0) // Kalah
-  pointsFor       Int              @default(0) // Poin yang dicetak
-  pointsAgainst   Int              @default(0) // Poin yang diterima (kemasukan)
-  pointDiff       Int              @default(0) // Selisih poin (pointsFor - pointsAgainst)
-  rank            Int?                         // Peringkat akhir dalam grup
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
+  id            Int             @id @default(autoincrement())
+  groupId       Int
+  group         TournamentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  playerName    String
+  seedOrder     Int             @default(0)
+  played        Int             @default(0)
+  wins          Int             @default(0)
+  losses        Int             @default(0)
+  pointsFor     Int             @default(0)
+  pointsAgainst Int             @default(0)
+  pointDiff     Int             @default(0)
+  rank          Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
   @@index([groupId])
 }
 
-// Pertandingan dalam grup (round-robin)
 model GroupMatch {
-  id              Int              @id @default(autoincrement())
-  
-  groupId         Int
-  group           TournamentGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  
-  player1Name     String           // Nama pemain 1
-  player2Name     String           // Nama pemain 2
-  score1          Int?             // Skor pemain 1
-  score2          Int?             // Skor pemain 2
-  winnerName      String?          // Nama pemenang (null jika belum selesai)
-  
-  status          MatchStatus      @default(SCHEDULED)
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
+  id          Int             @id @default(autoincrement())
+  groupId     Int
+  group       TournamentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  player1Name String
+  player2Name String
+  score1      Int?
+  score2      Int?
+  winnerName  String?
+  status      MatchStatus     @default(SCHEDULED)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
   @@index([groupId])
 }
 
@@ -209,28 +352,21 @@ model GroupMatch {
 // ============================================================
 
 model KnockoutMatch {
-  id              Int              @id @default(autoincrement())
-  
-  tournamentId    Int
-  tournament      Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  
-  category        String           // Kategori turnamen untuk mengaitkan bagan ini
-  
-  roundText       String           // Nama Ronde: "Perempat Final", "Semi Final", "Final"
-  matchOrder      Int              // Urutannya di bracket (visual order)
-  
-  player1Name     String?          // Bisa diedit manual oleh admin / diisi otomatis saat generate
-  player2Name     String?          
-  score1          Int?
-  score2          Int?
-  winnerName      String?
-  
-  nextMatchId     Int?             // Mengarah ke Match ID ronde selanjutnya
-  
-  status          MatchStatus      @default(SCHEDULED)
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
+  id           Int         @id @default(autoincrement())
+  tournamentId Int
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category     String
+  roundText    String
+  matchOrder   Int
+  player1Name  String?
+  player2Name  String?
+  score1       Int?
+  score2       Int?
+  winnerName   String?
+  nextMatchId  Int?
+  status       MatchStatus @default(SCHEDULED)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
   @@index([tournamentId, category])
 }

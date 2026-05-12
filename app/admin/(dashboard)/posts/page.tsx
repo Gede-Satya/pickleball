@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { PrismaClient } from "@prisma/client";
-import { deletePost } from "./actions";
-import DeleteButton from "./DeleteButton"; //
+import DeleteButton from "./DeleteButton";
 const prisma = new PrismaClient();
 
 export default async function PostsPage() {

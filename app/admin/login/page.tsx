@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState(""); // <-- Untuk pesan error
   const router = useRouter();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(""); // Reset error setiap kali submit
     
@@ -23,7 +23,7 @@ export default function LoginPage() {
       redirect: false, // Jangan redirect otomatis agar kita bisa tangkap error
     });
 
-    if (result.error) {
+    if (result?.error) {
       setError(result.error); // Tampilkan error (misal: "Password salah!")
     } else {
       // Jika sukses, arahkan ke dashboard admin

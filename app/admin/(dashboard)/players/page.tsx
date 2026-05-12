@@ -1,23 +1,22 @@
 import React from "react";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { deletePlayer } from "./action"; // Pastikan path-nya benar
 import DeleteButton from "./DeleteButton";
 
-const prisma = new PrismaClient();
+export const dynamic = 'force-dynamic';
 
-// Fungsi kecil untuk membuat badge warna-warni
-function CategoryBadge({ category }: { category: string | null }) {
-  if (!category) return <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-xs font-bold">-</span>;
-  
-  const styles: Record<string, string> = {
-    single: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    double: "bg-blue-100 text-blue-700 border-blue-200",
-    double_mix: "bg-purple-100 text-purple-700 border-purple-200",
+// Badge menampilkan kombinasi grade + gender + matchType
+function CategoryBadge({ grade, gender, matchType }: { grade: string; gender: string; matchType: string }) {
+  const genderLabel = gender === 'MALE' ? 'Putra' : 'Putri';
+  const matchLabel = matchType === 'SINGLE' ? 'Single' : matchType === 'DOUBLE' ? 'Double' : 'Mixed';
+  const label = matchType === 'MIXED' ? `${grade} Mixed` : `${grade} ${genderLabel} ${matchLabel}`;
+
+  const styleMap: Record<string, string> = {
+    SINGLE: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    DOUBLE: "bg-blue-100 text-blue-700 border-blue-200",
+    MIXED:  "bg-purple-100 text-purple-700 border-purple-200",
   };
-
-  const label = category.replace("_", " ");
-  const styleClass = styles[category] || "bg-slate-100 text-slate-700 border-slate-200";
+  const styleClass = styleMap[matchType] || "bg-slate-100 text-slate-700 border-slate-200";
 
   return (
     <span className={`px-3 py-1.5 border rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap ${styleClass}`}>
@@ -87,7 +86,7 @@ export default async function PlayerListPage() {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <CategoryBadge category={player.category} />
+                      <CategoryBadge grade={player.grade} gender={player.gender} matchType={player.matchType} />
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2 text-slate-600 font-medium">
@@ -111,10 +110,7 @@ export default async function PlayerListPage() {
                         </Link>
 
                         {/* Tombol Hapus */}
-                        <form action={deletePlayer}>
-                          <input type="hidden" name="id" value={player.id} />
-                          <DeleteButton />
-                        </form>
+                        <DeleteButton playerId={player.id} />
                       </div>
                     </td>
                   </tr>

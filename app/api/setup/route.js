@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma"; // Ambil dari file lib yang baru dibuat
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 export async function GET() {
   try {
@@ -12,7 +13,7 @@ export async function GET() {
     });
 
     if (existingAdmin) {
-      return NextResponse.json({ message: "Admin sudah ada!" });
+      return errorResponse("Admin sudah ada! ✅", 400, "BAD_REQUEST");
     }
 
     const hashedPassword = await bcrypt.hash("admin123", 10);
@@ -26,13 +27,10 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ message: "Yeay! Akun Admin berhasil dibuat!" });
+    return successResponse("Yeay! Akun Admin berhasil dibuat! 🎉");
   } catch (error) {
     console.error("Error Detail:", error);
-    return NextResponse.json({ 
-      error: "Gagal nih!", 
-      detail: error.message 
-    }, { status: 500 });
+    return errorResponse("Gagal nih! ❌", 500, "INTERNAL_SERVER_ERROR", error.message);
   }
 }
 

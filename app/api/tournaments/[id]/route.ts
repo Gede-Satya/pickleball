@@ -1,5 +1,6 @@
 // /api/tournaments/[id]/route.ts
 import { PrismaClient } from "@prisma/client";
+import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 const prisma = new PrismaClient();
 
@@ -16,11 +17,11 @@ export async function GET(
     });
 
     if (!data) {
-      return Response.json({ error: "Turnamen tidak ditemukan" }, { status: 404 });
+      return errorResponse("Turnamen tidak ditemukan 🔍", 404, "NOT_FOUND");
     }
 
-    return Response.json(data);
+    return successResponse("Data turnamen berhasil diambil ✨", data);
   } catch (error) {
-    return Response.json({ error: "Gagal mengambil data" }, { status: 500 });
+    return errorResponse("Gagal mengambil data turnamen ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { showSuccess } from '@/lib/swal';
 
 // Tipe data untuk form
 interface FormData {
@@ -39,7 +40,7 @@ const Contact: React.FC = () => {
     
     // Simulasi loading sebentar
     setTimeout(() => {
-      alert(`Terima kasih ${formData.nama}, pesan Anda telah terkirim!`);
+      showSuccess(`Terima kasih ${formData.nama}, pesan Anda telah terkirim!`);
       setFormData({ nama: '', email: '', pesan: '' }); // Reset form
       setIsSubmitting(false);
     }, 1000);

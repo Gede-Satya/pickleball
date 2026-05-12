@@ -1,5 +1,6 @@
 // /api/tournaments/[id]/brackets/matches/route.ts
 import { PrismaClient } from "@prisma/client";
+import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 const prisma = new PrismaClient();
 
@@ -15,7 +16,7 @@ export async function POST(
     const { groupId } = body;
 
     if (!groupId) {
-      return Response.json({ error: "groupId wajib diisi" }, { status: 400 });
+      return errorResponse("groupId wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     // Ambil semua member di grup ini
@@ -25,10 +26,7 @@ export async function POST(
     });
 
     if (members.length < 2) {
-      return Response.json(
-        { error: "Minimal 2 pemain untuk generate pertandingan" },
-        { status: 400 }
-      );
+      return errorResponse("Minimal 2 pemain untuk generate pertandingan ⚠️", 400, "BAD_REQUEST");
     }
 
     // Hapus match lama di grup ini (reset)
@@ -75,13 +73,10 @@ export async function POST(
       orderBy: { id: "asc" },
     });
 
-    return Response.json(createdMatches, { status: 201 });
+    return successResponse("Pertandingan berhasil digenerate 📅", createdMatches, 201);
   } catch (error) {
     console.error(error);
-    return Response.json(
-      { error: "Gagal generate pertandingan" },
-      { status: 500 }
-    );
+    return errorResponse("Gagal generate pertandingan ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -97,10 +92,7 @@ export async function PUT(
     const { matchId, score1, score2 } = body;
 
     if (matchId === undefined || score1 === undefined || score2 === undefined) {
-      return Response.json(
-        { error: "matchId, score1, score2 wajib diisi" },
-        { status: 400 }
-      );
+      return errorResponse("matchId, score1, score2 wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     const s1 = Number(score1);
@@ -115,7 +107,7 @@ export async function PUT(
     });
 
     if (!match) {
-      return Response.json({ error: "Match tidak ditemukan" }, { status: 404 });
+      return errorResponse("Match tidak ditemukan 🔍", 404, "NOT_FOUND");
     }
 
     // Update match
@@ -134,13 +126,10 @@ export async function PUT(
     // Recalculate semua statistik member di grup ini
     await recalculateGroupStats(match.groupId);
 
-    return Response.json({ success: true });
+    return successResponse("Skor berhasil diupdate 📝");
   } catch (error) {
     console.error(error);
-    return Response.json(
-      { error: "Gagal update skor" },
-      { status: 500 }
-    );
+    return errorResponse("Gagal update skor ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 

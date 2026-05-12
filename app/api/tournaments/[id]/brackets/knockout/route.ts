@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 const prisma = new PrismaClient();
 
@@ -33,10 +34,10 @@ export async function GET(
       orderBy: { id: "asc" },
     });
 
-    return Response.json(matches);
+    return successResponse("Data knockout matches berhasil diambil 📅", matches);
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal memuat knockout matches" }, { status: 500 });
+    return errorResponse("Gagal memuat knockout matches ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -53,7 +54,7 @@ export async function POST(
     const { category } = body;
 
     if (!category) {
-      return Response.json({ error: "Category wajib diisi" }, { status: 400 });
+      return errorResponse("Category wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     // 1. Ambil Juara 1 dan 2 dari setiap grup dalam kategori tersebut
@@ -71,10 +72,7 @@ export async function POST(
     let qualifiedPlayers = groups.flatMap((g) => g.members);
 
     if (qualifiedPlayers.length < 2) {
-      return Response.json(
-        { error: "Minimal butuh 2 pemain (juara) untuk fase knockout" },
-        { status: 400 }
-      );
+      return errorResponse("Minimal butuh 2 pemain (juara) untuk fase knockout ⚠️", 400, "BAD_REQUEST");
     }
 
     // 2. Ranking ulang peserta: Utamakan Rank 1 (Juara Grup), lalu wins, pointDiff, pointsFor
@@ -247,10 +245,10 @@ export async function POST(
       orderBy: { id: "asc" },
     });
 
-    return Response.json(finalMatches);
+    return successResponse("Bracket knockout berhasil digenerate 🏆", finalMatches, 201);
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal generate bracket knockout" }, { status: 500 });
+    return errorResponse("Gagal generate bracket knockout ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -266,11 +264,11 @@ export async function PUT(
     const { matchId, player1Name, player2Name, score1, score2, reset } = body;
 
     if (!matchId) {
-      return Response.json({ error: "matchId wajib diisi" }, { status: 400 });
+      return errorResponse("matchId wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     const matchBefore = await prisma.knockoutMatch.findUnique({ where: { id: Number(matchId) } });
-    if (!matchBefore) return Response.json({ error: "Match tidak ditemukan" }, { status: 404 });
+    if (!matchBefore) return errorResponse("Match tidak ditemukan 🔍", 404, "NOT_FOUND");
 
     // Jika admin hanya merubah nama manual di bracket
     if (player1Name !== undefined || player2Name !== undefined) {
@@ -278,7 +276,7 @@ export async function PUT(
          if (player1Name !== undefined) dataUpdate.player1Name = player1Name || null;
          if (player2Name !== undefined) dataUpdate.player2Name = player2Name || null;
          await prisma.knockoutMatch.update({ where: { id: matchBefore.id }, data: dataUpdate });
-         return Response.json({ success: true });
+         return successResponse("Nama pemain berhasil diupdate 📝");
     }
 
     // Jika admin me-reset skor
@@ -303,7 +301,7 @@ export async function PUT(
                 }
             }
         }
-        return Response.json({ success: true });
+        return successResponse("Skor berhasil direset 🔄");
     }
 
     // Input Skor Normal
@@ -313,7 +311,7 @@ export async function PUT(
     const winner = s1 > s2 ? matchBefore.player1Name : s2 > s1 ? matchBefore.player2Name : null;
 
     if (!winner) {
-        return Response.json({ error: "Skor tidak boleh seri untuk pertandingan sistem gugur" }, { status: 400 });
+        return errorResponse("Skor tidak boleh seri untuk pertandingan sistem gugur ⚠️", 400, "BAD_REQUEST");
     }
 
     // Update match
@@ -340,9 +338,9 @@ export async function PUT(
         });
     }
 
-    return Response.json({ success: true });
+    return successResponse("Match berhasil diupdate 📝");
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal update match" }, { status: 500 });
+    return errorResponse("Gagal update match ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }

@@ -1,5 +1,6 @@
 // /api/tournaments/[id]/brackets/members/route.ts
 import { PrismaClient } from "@prisma/client";
+import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 const prisma = new PrismaClient();
 
@@ -15,10 +16,19 @@ export async function POST(
     const { groupId, playerName, seedOrder } = body;
 
     if (!groupId || !playerName) {
-      return Response.json(
-        { error: "groupId dan playerName wajib diisi" },
-        { status: 400 }
-      );
+      return errorResponse("groupId dan playerName wajib diisi ⚠️", 400, "BAD_REQUEST");
+    }
+
+    // Cek apakah pemain sudah ada di grup ini
+    const existingMember = await prisma.groupMember.findFirst({
+      where: {
+        groupId: Number(groupId),
+        playerName: playerName
+      }
+    });
+
+    if (existingMember) {
+      return errorResponse("Pemain ini sudah ditambahkan ke dalam grup ⚠️", 400, "BAD_REQUEST");
     }
 
     const member = await prisma.groupMember.create({
@@ -29,10 +39,10 @@ export async function POST(
       },
     });
 
-    return Response.json(member, { status: 201 });
+    return successResponse("Member berhasil ditambahkan 👤", member, 201);
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal menambah member" }, { status: 500 });
+    return errorResponse("Gagal menambah member ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -48,17 +58,17 @@ export async function DELETE(
     const { memberId } = body;
 
     if (!memberId) {
-      return Response.json({ error: "memberId wajib diisi" }, { status: 400 });
+      return errorResponse("memberId wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     await prisma.groupMember.delete({
       where: { id: Number(memberId) },
     });
 
-    return Response.json({ success: true });
+    return successResponse("Member berhasil dihapus 🗑️");
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal menghapus member" }, { status: 500 });
+    return errorResponse("Gagal menghapus member ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -74,10 +84,7 @@ export async function PUT(
     const { members } = body; // [ { id: 1, seedOrder: 1 }, { id: 2, seedOrder: 2 } ]
 
     if (!members || !Array.isArray(members)) {
-      return Response.json(
-        { error: "Format data members tidak valid" },
-        { status: 400 }
-      );
+      return errorResponse("Format data members tidak valid ⚠️", 400, "BAD_REQUEST");
     }
 
     // Update seed order untuk semua member sekaligus
@@ -90,12 +97,9 @@ export async function PUT(
       )
     );
 
-    return Response.json({ success: true });
+    return successResponse("Seed order berhasil diperbarui 🔢");
   } catch (error) {
     console.error(error);
-    return Response.json(
-      { error: "Gagal update seed order" },
-      { status: 500 }
-    );
+    return errorResponse("Gagal update seed order ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }

@@ -1,5 +1,6 @@
 // /api/tournaments/[id]/brackets/route.ts
 import { PrismaClient } from "@prisma/client";
+import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 const prisma = new PrismaClient();
 
@@ -27,13 +28,16 @@ export async function GET(
       orderBy: { seedOrder: "asc" },
     });
 
-    // Ambil kategori unik dari pemain
-    const categories = [...new Set(players.map((p) => p.category).filter(Boolean))];
+    // Ambil kategori unik dari pemain (berdasarkan kombinasi grade+gender+matchType)
+    const categories = [...new Set(players.map((p) => {
+      if (p.matchType === 'MIXED') return `${p.grade}_MIXED`;
+      return `${p.grade}_${p.gender}_${p.matchType}`;
+    }))];
 
-    return Response.json({ groups, players, categories });
+    return successResponse("Data bracket berhasil diambil 📊", { groups, players, categories });
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal mengambil data bracket" }, { status: 500 });
+    return errorResponse("Gagal mengambil data bracket ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -50,7 +54,7 @@ export async function POST(
     const { name, category } = body;
 
     if (!name || !category) {
-      return Response.json({ error: "Nama grup dan kategori wajib diisi" }, { status: 400 });
+      return errorResponse("Nama grup dan kategori wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     const group = await prisma.tournamentGroup.create({
@@ -65,10 +69,10 @@ export async function POST(
       },
     });
 
-    return Response.json(group, { status: 201 });
+    return successResponse("Grup berhasil dibuat ✅", group, 201);
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal membuat grup" }, { status: 500 });
+    return errorResponse("Gagal membuat grup ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -84,16 +88,16 @@ export async function DELETE(
     const { groupId } = body;
 
     if (!groupId) {
-      return Response.json({ error: "groupId wajib diisi" }, { status: 400 });
+      return errorResponse("groupId wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     await prisma.tournamentGroup.delete({
       where: { id: Number(groupId) },
     });
 
-    return Response.json({ success: true });
+    return successResponse("Grup berhasil dihapus 🗑️");
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Gagal menghapus grup" }, { status: 500 });
+    return errorResponse("Gagal menghapus grup ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }

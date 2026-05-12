@@ -4,6 +4,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { updatePost } from "../../actions";
+import { showError } from "@/lib/swal";
 
 export default function EditPostForm({ post }: { post: any }) {
   const [imageUrl, setImageUrl] = useState<string>("");
@@ -23,9 +24,9 @@ export default function EditPostForm({ post }: { post: any }) {
       const data = await res.json();
 
       if (data.url) setImageUrl(data.url);
-      else alert(data.error || "Gagal upload gambar");
+      else showError(data.error || "Gagal upload gambar");
     } catch (error) {
-      alert("Terjadi kesalahan sistem saat upload.");
+      showError("Terjadi kesalahan sistem saat upload.");
     } finally {
       setIsUploading(false);
     }

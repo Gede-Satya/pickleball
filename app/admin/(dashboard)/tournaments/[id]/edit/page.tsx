@@ -3,6 +3,7 @@
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { updateTournament } from "./actions";
+import { showError } from "@/lib/swal";
 
 export default function EditTournamentPage({
   params,
@@ -58,11 +59,11 @@ export default function EditTournamentPage({
       if (data.url) {
         setImageUrl(data.url);
       } else {
-        alert(data.error || "Gagal mengunggah gambar");
+        showError(data.error || "Gagal mengunggah gambar");
       }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Terjadi kesalahan saat mengunggah gambar.");
+      showError("Terjadi kesalahan saat mengunggah gambar.");
     } finally {
       setIsUploading(false); // Matikan loading
     }
@@ -80,9 +81,25 @@ export default function EditTournamentPage({
     );
   }
 
-  // Format Tanggal untuk nilai default Input
-  const formattedStartDate = new Date(tournament.startDate).toISOString().split("T")[0];
-  const formattedEndDate = new Date(tournament.endDate).toISOString().split("T")[0];
+ const formatDateLocal = (date: string | Date | null | undefined): string => {
+  if (!date) return "";
+
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "";
+
+  const offset = d.getTimezoneOffset();
+  return new Date(d.getTime() - offset * 60000)
+    .toISOString()
+    .split("T")[0];
+};
+
+const formattedStartDate = tournament?.startDate
+  ? formatDateLocal(tournament.startDate)
+  : "";
+
+const formattedEndDate = tournament?.endDate
+  ? formatDateLocal(tournament.endDate)
+  : "";
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12">

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { showWarning, showInfo, showConfirm } from "@/lib/swal";
 import dynamic from "next/dynamic";
 import { KnockoutMatch } from "./BracketClient"; // Will add type export soon
 
@@ -70,22 +71,26 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
     if (!match) return;
 
     if (match.state === "DONE") {
-       if (confirm(`Skor saat ini ${match.originalMatch.score1} - ${match.originalMatch.score2}. Reset pertandingan ini?`)) {
-           onResetMatch?.(match.id);
-       }
+       showConfirm(
+         `Skor saat ini ${match.originalMatch.score1} - ${match.originalMatch.score2}. Reset pertandingan ini?`,
+         'Reset Pertandingan?',
+         'Ya, Reset!'
+       ).then((confirmed) => {
+         if (confirmed) onResetMatch?.(match.id);
+       });
        return;
     }
     
     // Boleh isi skor kalau kedua pemain sudah jelas (bukan TBD/null)
     if (!match.originalMatch.player1Name || !match.originalMatch.player2Name) {
-        alert("Kedua pemain belum ditentukan. Selesaikan match sebelumnya untuk mengisi slot ini.");
+        showWarning("Kedua pemain belum ditentukan. Selesaikan match sebelumnya untuk mengisi slot ini.");
         return;
     }
 
     // Jika salah satu BYE, ini anomali (karena sistem otomatis mengisi kemenangan bye), 
     // tapi kalau terjadi, cegah edit skor
     if (match.originalMatch.player1Name === "BYE" || match.originalMatch.player2Name === "BYE") {
-        alert("Match ini mendapatkan BYE.");
+        showInfo("Match ini mendapatkan BYE.", "Info Match");
         return;
     }
 
@@ -94,13 +99,19 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
     setTempScore2("");
   };
 
-  const handleEditName = (matchId: number, pNum: 1|2, name: string) => {
-     onEditName(matchId, pNum, name === "TBD" ? "" : name);
-  };
+const handleEditName = (matchId: number, pNum: 1|2, name: string) => {
+    if (onEditName) {
+        onEditName(matchId, pNum, name === "TBD" ? "" : name);
+    }
+};
+
+ // 1. Definisikan komponen sebagai 'any' di sini untuk mematikan pengecekan TS di JSX
+  const BracketComponent = SingleEliminationBracket as any;
 
   return (
     <div className="bracket-wrapper w-full">
-      <SingleEliminationBracket
+      {/* 2. Panggil BracketComponent, bukan SingleEliminationBracket */}
+      <BracketComponent
         matches={mappedMatches}
         matchComponent={({ hovered, topHovered, bottomHovered, ...props }: any) => {
            // Bersihkan SEMUA properti hover agar atribut boolean ini tidak bocor ke elemen DOM TheMatch
@@ -124,7 +135,6 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
            }
         }}
       />
-
       {/* Input Score Modal for Knockout */}
       {activeMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">

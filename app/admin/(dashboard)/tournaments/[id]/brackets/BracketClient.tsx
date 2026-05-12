@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import KnockoutBracketRender from "./KnockoutBracketRender";
+import { showError, showSuccess, showWarning, showConfirm, showDeleteConfirm } from "@/lib/swal";
 
 // ============================================================
 // TYPES
@@ -11,7 +12,9 @@ import KnockoutBracketRender from "./KnockoutBracketRender";
 interface Player {
   id: number;
   fullName: string;
-  category: string | null;
+  gender: string;
+  grade: string;
+  matchType: string;
   seedOrder: number | null;
 }
 
@@ -104,7 +107,7 @@ export default function BracketClient({
   const [tempScore2, setTempScore2] = useState("");
 
   // Modal state untuk tambah member
-  const [addMemberModal, setAddMemberModal] = useState<number | null>(null); // groupId
+  const [addMemberModal, setAddMemberModal] = useState<number | null>(null);
   const [selectedPlayerName, setSelectedPlayerName] = useState("");
 
   // Modal edit nama knockout
@@ -122,45 +125,65 @@ export default function BracketClient({
   const assignedNames = new Set(
     filteredGroups.flatMap((g) => g.members.map((m) => m.playerName))
   );
-  const availablePlayers = players.filter(
-    (p) => p.category === activeCategory && !assignedNames.has(p.fullName)
-  );
+  const availablePlayers = players.filter((p) => {
+    const playerCatKey =
+      p.matchType === "MIXED"
+        ? `${p.grade}_MIXED`
+        : `${p.grade}_${p.gender}_${p.matchType}`;
+    return playerCatKey === activeCategory && !assignedNames.has(p.fullName);
+  });
 
-  // Refresh data dari server
-  const refreshData = useCallback(async () => {
-    try {
-      // 1. Group Data
-      const resG = await fetch(`/api/tournaments/${tournament.id}/brackets`);
-      const dataG = await resG.json();
-      if (dataG.groups) setGroups(dataG.groups);
+  // ============================================================
+  // FIX: refreshData dengan cache: "no-store" + router.refresh()
+  // ============================================================
+ const refreshData = useCallback(async () => {
+  setLoading(true);
+  router.refresh();
+  try {
+    const resG = await fetch(`/api/tournaments/${tournament.id}/brackets`, {
+      cache: "no-store",
+    });
+    const dataG = await resG.json();
+    if (dataG.data?.groups) setGroups(dataG.data.groups); // ← tambah .data
 
-      // 2. Knockout Data
-      const resK = await fetch(`/api/tournaments/${tournament.id}/brackets/knockout?category=${activeCategory}`);
-      const dataK = await resK.json();
-      if (Array.isArray(dataK)) setKnockoutData(dataK);
-    } catch (err) {
-      console.error("Gagal refresh data:", err);
-    }
-  }, [tournament.id, activeCategory]);
+    const resK = await fetch(
+      `/api/tournaments/${tournament.id}/brackets/knockout?category=${activeCategory}`,
+      { cache: "no-store" }
+    );
+    const dataK = await resK.json();
+    if (Array.isArray(dataK.data)) setKnockoutData(dataK.data); // ← tambah .data
+  } catch (err) {
+    console.error("Gagal refresh data:", err);
+    showError("Gagal memuat data turnamen. Silakan periksa koneksi Anda.");
+  } finally {
+    setLoading(false);
+  }
+}, [tournament.id, activeCategory, router]);
+
+  // ============================================================
+  // FIX 2: Re-fetch otomatis saat ganti kategori
+  // ============================================================
+  useEffect(() => {
+    if (!activeCategory) return;
+    refreshData();
+  }, [activeCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: sengaja tidak taruh refreshData di dep array supaya tidak infinite loop.
+  // activeCategory sudah cukup sebagai trigger.
 
   // ======================== GRUP ========================
 
-  // Tambah grup baru
   const handleCreateGroup = async () => {
     if (!newGroupName.trim() || !activeCategory) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/tournaments/${tournament.id}/brackets`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: newGroupName.trim(),
-            category: activeCategory,
-          }),
-        }
-      );
+      const res = await fetch(`/api/tournaments/${tournament.id}/brackets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newGroupName.trim(),
+          category: activeCategory,
+        }),
+      });
       if (res.ok) {
         setNewGroupName("");
         await refreshData();
@@ -171,9 +194,11 @@ export default function BracketClient({
     setLoading(false);
   };
 
-  // Hapus grup
   const handleDeleteGroup = async (groupId: number) => {
-    if (!confirm("Hapus grup ini beserta semua data pertandingannya?")) return;
+    const confirmed = await showDeleteConfirm(
+      "Hapus grup ini beserta semua data pertandingannya?"
+    );
+    if (!confirmed) return;
     setLoading(true);
     try {
       await fetch(`/api/tournaments/${tournament.id}/brackets`, {
@@ -182,20 +207,22 @@ export default function BracketClient({
         body: JSON.stringify({ groupId }),
       });
       await refreshData();
+      showSuccess("Grup berhasil dihapus!");
     } catch (err) {
       console.error(err);
+      showError("Gagal menghapus grup.");
     }
     setLoading(false);
   };
 
   // ======================== MEMBER ========================
 
-  // Tambah member ke grup
   const handleAddMember = async (groupId: number) => {
     if (!selectedPlayerName) return;
     setLoading(true);
     try {
-      const currentMembers = groups.find((g) => g.id === groupId)?.members || [];
+      const currentMembers =
+        groups.find((g) => g.id === groupId)?.members || [];
       const res = await fetch(
         `/api/tournaments/${tournament.id}/brackets/members`,
         {
@@ -212,6 +239,9 @@ export default function BracketClient({
         setSelectedPlayerName("");
         setAddMemberModal(null);
         await refreshData();
+      } else {
+        const errorData = await res.json();
+        showError(errorData.error || "Gagal menambahkan pemain");
       }
     } catch (err) {
       console.error(err);
@@ -219,27 +249,25 @@ export default function BracketClient({
     setLoading(false);
   };
 
-  // Hapus member dari grup
   const handleRemoveMember = async (memberId: number) => {
-    if (!confirm("Hapus pemain ini dari grup?")) return;
+    const confirmed = await showDeleteConfirm("Hapus pemain ini dari grup?");
+    if (!confirmed) return;
     setLoading(true);
     try {
-      await fetch(
-        `/api/tournaments/${tournament.id}/brackets/members`,
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memberId }),
-        }
-      );
+      await fetch(`/api/tournaments/${tournament.id}/brackets/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId }),
+      });
       await refreshData();
+      showSuccess("Pemain berhasil dihapus dari grup!");
     } catch (err) {
       console.error(err);
+      showError("Gagal menghapus pemain.");
     }
     setLoading(false);
   };
 
-  // Move member up/down (seeding manual)
   const handleMoveMember = async (
     groupId: number,
     memberId: number,
@@ -263,14 +291,11 @@ export default function BracketClient({
     });
 
     try {
-      await fetch(
-        `/api/tournaments/${tournament.id}/brackets/members`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ members: newMembers }),
-        }
-      );
+      await fetch(`/api/tournaments/${tournament.id}/brackets/members`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ members: newMembers }),
+      });
       await refreshData();
     } catch (err) {
       console.error(err);
@@ -279,29 +304,28 @@ export default function BracketClient({
 
   // ======================== MATCH ========================
 
-  // Generate round-robin
   const handleGenerateMatches = async (groupId: number) => {
     const group = groups.find((g) => g.id === groupId);
     if (!group || group.members.length < 2) {
-      alert("Minimal 2 pemain dalam grup untuk generate pertandingan!");
+      showWarning("Minimal 2 pemain dalam grup untuk generate pertandingan!");
       return;
     }
-    if (
-      group.matches.length > 0 &&
-      !confirm("Ini akan mereset semua pertandingan dan statistik grup ini. Lanjutkan?")
-    )
-      return;
+    if (group.matches.length > 0) {
+      const confirmed = await showConfirm(
+        "Ini akan mereset semua pertandingan dan statistik grup ini. Lanjutkan?",
+        "Reset Pertandingan?",
+        "Ya, Lanjutkan!"
+      );
+      if (!confirmed) return;
+    }
 
     setLoading(true);
     try {
-      await fetch(
-        `/api/tournaments/${tournament.id}/brackets/matches`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ groupId }),
-        }
-      );
+      await fetch(`/api/tournaments/${tournament.id}/brackets/matches`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupId }),
+      });
       await refreshData();
     } catch (err) {
       console.error(err);
@@ -309,30 +333,25 @@ export default function BracketClient({
     setLoading(false);
   };
 
-  // Open score modal (Grup)
   const openScoreModal = (match: GroupMatch, groupId: number) => {
     setScoreModal({ match, groupId });
     setTempScore1(match.score1?.toString() || "");
     setTempScore2(match.score2?.toString() || "");
   };
 
-  // Submit skor Grup
   const handleSubmitScore = async () => {
     if (!scoreModal || tempScore1 === "" || tempScore2 === "") return;
     setLoading(true);
     try {
-      await fetch(
-        `/api/tournaments/${tournament.id}/brackets/matches`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            matchId: scoreModal.match.id,
-            score1: Number(tempScore1),
-            score2: Number(tempScore2),
-          }),
-        }
-      );
+      await fetch(`/api/tournaments/${tournament.id}/brackets/matches`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchId: scoreModal.match.id,
+          score1: Number(tempScore1),
+          score2: Number(tempScore2),
+        }),
+      });
       setScoreModal(null);
       await refreshData();
     } catch (err) {
@@ -343,10 +362,17 @@ export default function BracketClient({
 
   // ======================== KNOCKOUT ========================
 
-  const activeKnockouts = knockoutData.filter(k => k.category === activeCategory);
+  const activeKnockouts = knockoutData.filter(
+    (k) => k.category === activeCategory
+  );
 
   const handleGenerateKnockout = async () => {
-    if (!confirm("Generate sistem gugur dari Juara dan Runner-Up grup? (Data knockout saat ini akan tertimpa)")) return;
+    const confirmed = await showConfirm(
+      "Generate sistem gugur dari Juara dan Runner-Up grup? (Data knockout saat ini akan tertimpa)",
+      "Generate Bracket Gugur?",
+      "Ya, Generate!"
+    );
+    if (!confirmed) return;
     setLoading(true);
     try {
       await fetch(`/api/tournaments/${tournament.id}/brackets/knockout`, {
@@ -361,18 +387,29 @@ export default function BracketClient({
     setLoading(false);
   };
 
-  const submitKnockoutScore = async (matchId: number, s1: string, s2: string) => {
+  const submitKnockoutScore = async (
+    matchId: number,
+    s1: string,
+    s2: string
+  ) => {
     if (!s1 || !s2) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/tournaments/${tournament.id}/brackets/knockout`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, score1: Number(s1), score2: Number(s2) })
-      });
+      const res = await fetch(
+        `/api/tournaments/${tournament.id}/brackets/knockout`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            matchId,
+            score1: Number(s1),
+            score2: Number(s2),
+          }),
+        }
+      );
       if (!res.ok) {
         const d = await res.json();
-        alert(d.error || "Gagal update skor");
+        showError(d.error || "Gagal update skor");
       }
       await refreshData();
     } catch (err) {
@@ -382,13 +419,18 @@ export default function BracketClient({
   };
 
   const handleResetKnockoutMatch = async (matchId: number) => {
-    if (!confirm("Reset match ini?")) return;
+    const confirmed = await showConfirm(
+      "Reset match ini?",
+      "Reset Match?",
+      "Ya, Reset!"
+    );
+    if (!confirmed) return;
     setLoading(true);
     try {
       await fetch(`/api/tournaments/${tournament.id}/brackets/knockout`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, reset: true })
+        body: JSON.stringify({ matchId, reset: true }),
       });
       await refreshData();
     } catch (err) {
@@ -401,18 +443,18 @@ export default function BracketClient({
     if (!editKnockoutName) return;
     setLoading(true);
     try {
-      const body: any = { matchId: editKnockoutName.id };
+      const body: Record<string, unknown> = { matchId: editKnockoutName.id };
       if (editKnockoutName.playerNum === 1) body.player1Name = tempKnockoutName;
       if (editKnockoutName.playerNum === 2) body.player2Name = tempKnockoutName;
 
       await fetch(`/api/tournaments/${tournament.id}/brackets/knockout`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
       setEditKnockoutName(null);
       await refreshData();
-    } catch(err) {
+    } catch (err) {
       console.error(err);
     }
     setLoading(false);
@@ -544,15 +586,17 @@ export default function BracketClient({
             <OverallRanking groups={filteredGroups} category={activeCategory} />
           )}
 
-          {/* ============================================================ */}
           {/* KNOCKOUT PHASE */}
-          {/* ============================================================ */}
           {filteredGroups.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 mt-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">⚔️ Fase Knockout (Sistem Gugur)</h3>
-                  <p className="text-sm text-slate-500">Bagan gugur berdasarkan Juara & Runner-Up dari semua grup.</p>
+                  <h3 className="text-xl font-bold text-slate-900">
+                    ⚔️ Fase Knockout (Sistem Gugur)
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Bagan gugur berdasarkan Juara & Runner-Up dari semua grup.
+                  </p>
                 </div>
                 <button
                   onClick={handleGenerateKnockout}
@@ -571,7 +615,11 @@ export default function BracketClient({
                       onUpdateScore={submitKnockoutScore}
                       onResetMatch={handleResetKnockoutMatch}
                       onEditName={(id, pNum, cur) => {
-                        setEditKnockoutName({ id, playerNum: pNum, currentName: cur });
+                        setEditKnockoutName({
+                          id,
+                          playerNum: pNum,
+                          currentName: cur,
+                        });
                         setTempKnockoutName(cur);
                       }}
                     />
@@ -579,7 +627,10 @@ export default function BracketClient({
                 </div>
               ) : (
                 <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                  <p className="text-slate-500">Belum ada bagan gugur. Selesaikan pertandingan grup, lalu klik tombol Generate di atas.</p>
+                  <p className="text-slate-500">
+                    Belum ada bagan gugur. Selesaikan pertandingan grup, lalu
+                    klik tombol Generate di atas.
+                  </p>
                 </div>
               )}
             </div>
@@ -645,20 +696,45 @@ export default function BracketClient({
       {editKnockoutName && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl mx-4">
-             <h3 className="text-lg font-bold text-slate-900 mb-2 text-center">Edit Nama Pemain</h3>
-             <p className="text-xs text-slate-500 text-center mb-6">Ubah manual nama pemain di bagan</p>
-             <input
-               type="text"
-               value={tempKnockoutName}
-               onChange={e => setTempKnockoutName(e.target.value)}
-               className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6"
-               autoFocus
-               onKeyDown={e => e.key === "Enter" && submitKnockoutNameEdit()}
-             />
-             <div className="flex gap-3">
-               <button onClick={() => setEditKnockoutName(null)} className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-semibold">Batal</button>
-               <button onClick={submitKnockoutNameEdit} disabled={loading} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-semibold disabled:opacity-50">Simpan</button>
-             </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2 text-center">
+              Edit Nama Pemain
+            </h3>
+            <p className="text-xs text-slate-500 text-center mb-6">
+              Ubah manual nama pemain di bagan
+            </p>
+            <input
+              type="text"
+              value={tempKnockoutName}
+              onChange={(e) => setTempKnockoutName(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && submitKnockoutNameEdit()}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditKnockoutName(null)}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                onClick={submitKnockoutNameEdit}
+                disabled={loading}
+                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-semibold disabled:opacity-50"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FIX 3: Loading overlay dipindah ke luar modal supaya selalu tampil */}
+      {loading && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white px-6 py-5 rounded-2xl shadow-xl flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-semibold text-slate-600">Memproses...</p>
           </div>
         </div>
       )}
@@ -701,7 +777,9 @@ function GroupCard({
   const sortedMembers = [...group.members].sort(
     (a, b) => a.seedOrder - b.seedOrder
   );
-  const completedMatches = group.matches.filter((m) => m.status === "DONE").length;
+  const completedMatches = group.matches.filter(
+    (m) => m.status === "DONE"
+  ).length;
   const totalMatches = group.matches.length;
 
   return (
@@ -770,7 +848,6 @@ function GroupCard({
                   <span className="flex-1 font-medium text-slate-800 text-sm">
                     {member.playerName}
                   </span>
-                  {/* Stats (jika ada match) */}
                   {member.played > 0 && (
                     <span className="text-xs text-slate-400">
                       {member.wins}W {member.losses}L | PD:{" "}
@@ -778,7 +855,6 @@ function GroupCard({
                       {member.pointDiff}
                     </span>
                   )}
-                  {/* Move Buttons */}
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => onMoveMember(group.id, member.id, "up")}
@@ -1002,7 +1078,7 @@ function GroupCard({
 }
 
 // ============================================================
-// OVERALL RANKING COMPONENT - Ranking gabungan semua grup
+// OVERALL RANKING COMPONENT
 // ============================================================
 function OverallRanking({
   groups,
@@ -1011,19 +1087,14 @@ function OverallRanking({
   groups: TournamentGroup[];
   category: string;
 }) {
-  // Kumpulkan semua member yang sudah bermain dari semua grup
   const allMembers = groups.flatMap((g) =>
     g.members
       .filter((m) => m.played > 0)
-      .map((m) => ({
-        ...m,
-        groupName: g.name,
-      }))
+      .map((m) => ({ ...m, groupName: g.name }))
   );
 
   if (allMembers.length === 0) return null;
 
-  // Sort keseluruhan: menang → point diff → points for
   const ranked = [...allMembers].sort((a, b) => {
     if (b.wins !== a.wins) return b.wins - a.wins;
     if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
@@ -1037,7 +1108,8 @@ function OverallRanking({
           🏅 Ranking Keseluruhan — {category}
         </h3>
         <p className="text-yellow-100 text-xs mt-0.5">
-          Peringkat gabungan dari semua grup berdasarkan kemenangan dan selisih poin
+          Peringkat gabungan dari semua grup berdasarkan kemenangan dan selisih
+          poin
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -1070,13 +1142,7 @@ function OverallRanking({
                 } hover:bg-indigo-50 transition-colors`}
               >
                 <td className="py-3 px-4 font-bold">
-                  {idx === 0
-                    ? "🥇"
-                    : idx === 1
-                    ? "🥈"
-                    : idx === 2
-                    ? "🥉"
-                    : idx + 1}
+                  {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : idx + 1}
                 </td>
                 <td className="py-3 px-4 font-semibold text-slate-800">
                   {member.playerName}
