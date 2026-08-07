@@ -370,3 +370,18 @@ model KnockoutMatch {
 
   @@index([tournamentId, category])
 }
+
+model OrgStructure {
+  id        String   @id @default(cuid())
+  name      String
+  position  String
+  photoUrl  String?
+  order     Int      @default(0)
+
+  parentId  String?
+  parent    OrgStructure?  @relation("OrgHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  OrgStructure[] @relation("OrgHierarchy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
