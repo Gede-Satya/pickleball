@@ -76,6 +76,13 @@ export function getCategoryLabel(
 }
 
 /**
+ * Mengubah canonical category key menjadi label ramah pengguna.
+ *
+ * Implementasi di lib/categoryLabel.ts agar aman dipakai dari client component.
+ */
+export { categoryKeyToLabel } from "./categoryLabel";
+
+/**
  * Menghasilkan CategoryInfo lengkap dari parts.
  */
 export function buildCategoryInfo(

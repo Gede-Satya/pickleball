@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import KnockoutBracketRender from "./KnockoutBracketRender";
 import { showError, showSuccess, showWarning, showConfirm, showDeleteConfirm } from "@/lib/swal";
+import { categoryKeyToLabel } from "@/lib/categoryLabel";
 
 // ============================================================
 // TYPES
@@ -120,6 +121,19 @@ export default function BracketClient({
 
   // Filter groups & knockouts berdasarkan kategori aktif
   const filteredGroups = groups.filter((g) => g.category === activeCategory);
+
+  // Jumlah pemain per kategori untuk ditampilkan di tab
+  const playerCountByCategory = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of players) {
+      const key =
+        p.matchType === "MIXED"
+          ? `${p.grade}_MIXED`
+          : `${p.grade}_${p.gender}_${p.matchType}`;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, [players]);
 
   // Pemain yang belum masuk grup manapun (per kategori aktif)
   const assignedNames = new Set(
@@ -461,18 +475,6 @@ export default function BracketClient({
   };
 
   // ============================================================
-  // LABEL
-  // ============================================================
-  const categoryLabel = (cat: string) => {
-    const labels: Record<string, string> = {
-      single: "🏓 Single",
-      double: "🏓🏓 Double",
-      double_mix: "🏓🏓 Mixed Double",
-    };
-    return labels[cat] || cat;
-  };
-
-  // ============================================================
   // RENDER
   // ============================================================
   return (
@@ -514,13 +516,22 @@ export default function BracketClient({
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all inline-flex items-center gap-2 ${
                   activeCategory === cat
                     ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
                     : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                {categoryLabel(cat)}
+                {categoryKeyToLabel(cat)}
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    activeCategory === cat
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {playerCountByCategory[cat] ?? 0}
+                </span>
               </button>
             ))}
           </div>
@@ -554,7 +565,7 @@ export default function BracketClient({
             <div className="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-12 text-center">
               <p className="text-slate-500">
                 Belum ada grup untuk kategori{" "}
-                <strong>{categoryLabel(activeCategory)}</strong>. Buat grup baru
+                <strong>{categoryKeyToLabel(activeCategory)}</strong>. Buat grup baru
                 di atas.
               </p>
             </div>
@@ -1105,7 +1116,7 @@ function OverallRanking({
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="bg-gradient-to-r from-yellow-500 to-amber-500 px-6 py-4">
         <h3 className="text-lg font-bold text-white">
-          🏅 Ranking Keseluruhan — {category}
+          🏅 Ranking Keseluruhan — {categoryKeyToLabel(category)}
         </h3>
         <p className="text-yellow-100 text-xs mt-0.5">
           Peringkat gabungan dari semua grup berdasarkan kemenangan dan selisih

@@ -1,12 +1,29 @@
 "use client";
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+
+const NAV_ITEMS = [
+  { href: "/admin", icon: "📊", label: "Dashboard", exact: true },
+  { href: "/admin/tournaments", icon: "🏆", label: "Turnamen" },
+  { href: "/admin/posts", icon: "📝", label: "Berita & Artikel" },
+  { href: "/admin/players", icon: "🥎", label: "Pemain terdaftar" },
+  { href: "/admin/clubs", icon: "🛡️", label: "Daftar Club" },
+  { href: "/admin/struktur", icon: "🌳", label: "Struktur Organisasi" },
+  { href: "/admin/wasit-log", icon: "🏁", label: "Log Wasit" },
+];
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
+  const isActive = (item: (typeof NAV_ITEMS)[number]) =>
+    item.exact ? pathname === item.href : pathname.startsWith(item.href);
+
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
       {/* SIDEBAR (Kiri) */}
@@ -16,48 +33,19 @@ export default function AdminLayout({
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          <Link
-            href="/admin"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-800 text-white font-medium"
-          >
-            <span>📊</span> Dashboard
-          </Link>
-          <Link
-            href="/admin/tournaments"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <span>🏆</span> Turnamen
-          </Link>
-          <Link
-            href="/admin/posts"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <span>📝</span> Berita & Artikel
-          </Link>
-          <Link
-            href="/admin/players"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <span>🥎</span> Pemain terdaftar
-          </Link>
-          <Link
-            href="/admin/clubs"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <span>🛡️</span> Daftar Club
-          </Link>
-          <Link
-            href="/admin/struktur"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <span>🌳</span> Struktur Organisasi
-          </Link>
-          <Link
-            href="/admin/wasit-log"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <span>🏁</span> Log Wasit
-          </Link>
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive(item)
+                  ? "bg-slate-800 text-white font-medium"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <span>{item.icon}</span> {item.label}
+            </Link>
+          ))}
           <a
             href="/wasit"
             target="_blank"
@@ -66,8 +54,6 @@ export default function AdminLayout({
           >
             <span>🔗</span> Buka Portal Wasit
           </a>
-
-
         </nav>
 
         <div className="p-4 border-t border-slate-800">
