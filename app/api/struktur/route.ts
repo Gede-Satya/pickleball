@@ -24,6 +24,7 @@ export async function POST(req: Request) {
       position: body.position,
       order: body.order ?? 0,
       parentId: body.parentId || null,
+      photoUrl: body.photoUrl || null,
     },
   });
 

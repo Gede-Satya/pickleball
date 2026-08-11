@@ -1,0 +1,664 @@
+"use client";
+
+import { useState, useEffect } from "react";
+
+// ============================================================
+// TYPES
+// ============================================================
+type Tournament = { id: number; name: string; status: string };
+type GroupMatch = {
+  id: number;
+  groupId: number;
+  player1Name: string;
+  player2Name: string;
+  score1: number | null;
+  score2: number | null;
+  winnerName: string | null;
+  refereeName: string | null;
+  status: string;
+};
+type KnockoutMatch = {
+  id: number;
+  category: string;
+  roundText: string;
+  matchOrder: number;
+  player1Name: string | null;
+  player2Name: string | null;
+  score1: number | null;
+  score2: number | null;
+  winnerName: string | null;
+  refereeName: string | null;
+  status: string;
+};
+type GroupData = {
+  id: number;
+  name: string;
+  category: string;
+  matches: GroupMatch[];
+};
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+export default function WasitPage() {
+  // Auth wasit (nama + PIN sederhana, tidak perlu session)
+  const [step, setStep] = useState<"login" | "dashboard">("login");
+  const [refereeName, setRefereeName] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [loginError, setLoginError] = useState("");
+
+  // Data
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+  const [groups, setGroups] = useState<GroupData[]>([]);
+  const [knockouts, setKnockouts] = useState<KnockoutMatch[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState("");
+  const [activeTab, setActiveTab] = useState<"grup" | "knockout">("grup");
+  const [loading, setLoading] = useState(false);
+
+  // Score modal
+  type ScoreTarget =
+    | { type: "group"; match: GroupMatch; groupId: number }
+    | { type: "knockout"; match: KnockoutMatch };
+
+  const [scoreTarget, setScoreTarget] = useState<ScoreTarget | null>(null);
+  const [tempScore1, setTempScore1] = useState("");
+  const [tempScore2, setTempScore2] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // ======================== AUTH ========================
+  function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nameInput.trim()) {
+      setLoginError("Nama wasit wajib diisi.");
+      return;
+    }
+    setRefereeName(nameInput.trim());
+    setStep("dashboard");
+    loadTournaments();
+  }
+
+  // ======================== LOAD DATA ========================
+  async function loadTournaments() {
+    try {
+      const res = await fetch("/api/wasit/tournaments");
+      const data = await res.json();
+      if (data.success) setTournaments(data.data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleSelectTournament(t: Tournament) {
+    setSelectedTournament(t);
+    setLoading(true);
+    try {
+      // Ambil grup matches
+      const resG = await fetch(`/api/tournaments/${t.id}/brackets`, { cache: "no-store" });
+      const dataG = await resG.json();
+      const fetchedGroups: GroupData[] = dataG.data?.groups || [];
+      setGroups(fetchedGroups);
+
+      // Derive categories
+      const cats = [...new Set(fetchedGroups.map((g) => g.category))];
+      setCategories(cats);
+      if (cats.length > 0) {
+        setActiveCategory(cats[0]);
+        // Ambil knockout untuk kategori pertama
+        await loadKnockout(t.id, cats[0]);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  }
+
+  async function loadKnockout(tId: number, cat: string) {
+    try {
+      const resK = await fetch(`/api/tournaments/${tId}/brackets/knockout?category=${cat}`, {
+        cache: "no-store",
+      });
+      const dataK = await resK.json();
+      setKnockouts(Array.isArray(dataK.data) ? dataK.data : []);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleCategoryChange(cat: string) {
+    setActiveCategory(cat);
+    if (selectedTournament) {
+      setLoading(true);
+      await loadKnockout(selectedTournament.id, cat);
+      setLoading(false);
+    }
+  }
+
+  async function refreshAll() {
+    if (!selectedTournament) return;
+    setLoading(true);
+    try {
+      const resG = await fetch(`/api/tournaments/${selectedTournament.id}/brackets`, {
+        cache: "no-store",
+      });
+      const dataG = await resG.json();
+      setGroups(dataG.data?.groups || []);
+      await loadKnockout(selectedTournament.id, activeCategory);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  }
+
+  // ======================== SCORE ========================
+  function openScoreModal(target: ScoreTarget) {
+    setScoreTarget(target);
+    setTempScore1("");
+    setTempScore2("");
+    setSubmitMsg(null);
+  }
+
+  async function handleSubmitScore(e: React.FormEvent) {
+    e.preventDefault();
+    if (!scoreTarget || tempScore1 === "" || tempScore2 === "") return;
+    if (!selectedTournament) return;
+    setSubmitting(true);
+    setSubmitMsg(null);
+
+    try {
+      let res;
+      if (scoreTarget.type === "group") {
+        res = await fetch(
+          `/api/tournaments/${selectedTournament.id}/brackets/matches`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              matchId: scoreTarget.match.id,
+              score1: Number(tempScore1),
+              score2: Number(tempScore2),
+              refereeName,
+            }),
+          }
+        );
+      } else {
+        res = await fetch(
+          `/api/tournaments/${selectedTournament.id}/brackets/knockout`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              matchId: scoreTarget.match.id,
+              score1: Number(tempScore1),
+              score2: Number(tempScore2),
+              refereeName,
+            }),
+          }
+        );
+      }
+
+      const data = await res.json();
+      if (res.ok) {
+        setSubmitMsg({ type: "success", text: "✅ Skor berhasil disimpan!" });
+        await refreshAll();
+        setTimeout(() => setScoreTarget(null), 1200);
+      } else {
+        setSubmitMsg({ type: "error", text: `❌ ${data.message || data.error || "Gagal menyimpan skor"}` });
+      }
+    } catch (err) {
+      console.error(err);
+      setSubmitMsg({ type: "error", text: "❌ Terjadi kesalahan jaringan." });
+    }
+    setSubmitting(false);
+  }
+
+  // ======================== DERIVED ========================
+  const filteredGroups = groups.filter((g) => g.category === activeCategory);
+  const scheduledGroupMatches = filteredGroups.flatMap((g) =>
+    g.matches
+      .filter((m) => m.status === "SCHEDULED")
+      .map((m) => ({ ...m, groupName: g.name, groupId: g.id }))
+  );
+  const doneGroupMatches = filteredGroups.flatMap((g) =>
+    g.matches
+      .filter((m) => m.status === "DONE")
+      .map((m) => ({ ...m, groupName: g.name, groupId: g.id }))
+  );
+  const scheduledKnockouts = knockouts.filter(
+    (k) => k.status === "SCHEDULED" && k.player1Name && k.player2Name &&
+      k.player1Name !== "BYE" && k.player2Name !== "BYE"
+  );
+  const doneKnockouts = knockouts.filter((k) => k.status === "DONE");
+
+  const categoryLabel = (cat: string) => {
+    const parts = cat.split("_");
+    const grade = parts[0] || "";
+    const gender = parts[1] === "MALE" ? "Putra" : parts[1] === "FEMALE" ? "Putri" : "";
+    const type = parts[2] === "SINGLE" ? "Tunggal" : parts[2] === "DOUBLE" ? "Ganda" : parts[1] === "MIXED" ? "Ganda Campuran" : parts[2] || "";
+    return [grade, gender, type].filter(Boolean).join(" · ");
+  };
+
+  // ============================================================
+  // RENDER — LOGIN
+  // ============================================================
+  if (step === "login") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Logo/Title */}
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-yellow-400/30">
+              <span className="text-4xl">🏁</span>
+            </div>
+            <h1 className="text-3xl font-black text-white tracking-tight">Portal Wasit</h1>
+            <p className="text-slate-400 mt-2 text-sm">IPF Kota Denpasar — Input Skor Pertandingan</p>
+          </div>
+
+          {/* Form */}
+          <div className="bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl p-8 shadow-2xl">
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-slate-300 mb-2">
+                  Nama Lengkap Wasit
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={nameInput}
+                  onChange={(e) => { setNameInput(e.target.value); setLoginError(""); }}
+                  placeholder="Tulis nama lengkap Anda..."
+                  className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-base"
+                  autoFocus
+                />
+                {loginError && (
+                  <p className="text-red-400 text-xs mt-1.5 font-medium">{loginError}</p>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-400 bg-white/5 rounded-lg p-3 border border-white/10">
+                ⚠️ Nama yang Anda masukkan akan tercatat otomatis setiap kali Anda menginput skor. Pastikan nama sudah benar.
+              </p>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-bold rounded-xl transition-colors text-base shadow-lg shadow-yellow-400/30"
+              >
+                Masuk sebagai Wasit →
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // RENDER — DASHBOARD
+  // ============================================================
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-xl border-b border-white/10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-black text-white">🏁 Portal Wasit</h1>
+            <p className="text-xs text-yellow-400 font-semibold">Wasit: {refereeName}</p>
+          </div>
+          <button
+            onClick={() => { setStep("login"); setRefereeName(""); setNameInput(""); setSelectedTournament(null); }}
+            className="text-xs px-4 py-2 bg-white/10 border border-white/20 text-slate-300 rounded-lg hover:bg-white/20 transition-colors"
+          >
+            Ganti Wasit
+          </button>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+
+        {/* Pilih Turnamen */}
+        {!selectedTournament ? (
+          <div className="space-y-4">
+            <h2 className="text-white font-bold text-xl">Pilih Turnamen</h2>
+            {tournaments.length === 0 ? (
+              <div className="bg-white/10 border border-white/15 rounded-2xl p-12 text-center">
+                <span className="text-4xl block mb-3">🏜️</span>
+                <p className="text-slate-400">Tidak ada turnamen yang sedang berlangsung.</p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {tournaments.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleSelectTournament(t)}
+                    className="flex items-center justify-between bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl p-5 text-left transition-all group"
+                  >
+                    <div>
+                      <p className="font-bold text-white text-base group-hover:text-yellow-300 transition-colors">{t.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Status: {t.status}</p>
+                    </div>
+                    <span className="text-yellow-400 text-xl group-hover:translate-x-1 transition-transform">→</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Breadcrumb kembali */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedTournament(null)}
+                className="text-slate-400 hover:text-white text-sm transition-colors"
+              >
+                ← Ganti Turnamen
+              </button>
+              <span className="text-slate-600">·</span>
+              <span className="text-white font-semibold text-sm truncate">{selectedTournament.name}</span>
+            </div>
+
+            {/* Category Tabs */}
+            {categories.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => handleCategoryChange(cat)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      activeCategory === cat
+                        ? "bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-400/30"
+                        : "bg-white/10 border border-white/15 text-slate-300 hover:bg-white/20"
+                    }`}
+                  >
+                    {categoryLabel(cat)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Tab Grup/Knockout */}
+            <div className="flex gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+              {(["grup", "knockout"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold capitalize transition-all ${
+                    activeTab === tab
+                      ? "bg-white text-slate-900 shadow"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {tab === "grup" ? "🏓 Fase Grup" : "⚔️ Knockout"}
+                </button>
+              ))}
+            </div>
+
+            {loading && (
+              <div className="text-center py-8 text-slate-400 text-sm">Memuat data...</div>
+            )}
+
+            {!loading && activeTab === "grup" && (
+              <div className="space-y-6">
+                {/* Match Belum Dilayani */}
+                <section>
+                  <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                    Pertandingan Menunggu Input ({scheduledGroupMatches.length})
+                  </h3>
+                  {scheduledGroupMatches.length === 0 ? (
+                    <p className="text-slate-500 text-sm">Semua pertandingan sudah selesai.</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {scheduledGroupMatches.map((m) => (
+                        <MatchCard
+                          key={m.id}
+                          player1={m.player1Name}
+                          player2={m.player2Name}
+                          score1={null}
+                          score2={null}
+                          status="SCHEDULED"
+                          groupName={m.groupName}
+                          onInput={() => openScoreModal({ type: "group", match: m, groupId: m.groupId })}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Match Selesai */}
+                {doneGroupMatches.length > 0 && (
+                  <section>
+                    <h3 className="text-slate-400 font-bold mb-3 text-sm uppercase tracking-wider">
+                      Selesai ({doneGroupMatches.length})
+                    </h3>
+                    <div className="grid gap-2">
+                      {doneGroupMatches.map((m) => (
+                        <MatchCard
+                          key={m.id}
+                          player1={m.player1Name}
+                          player2={m.player2Name}
+                          score1={m.score1}
+                          score2={m.score2}
+                          status="DONE"
+                          groupName={m.groupName}
+                          refereeName={m.refereeName}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+
+            {!loading && activeTab === "knockout" && (
+              <div className="space-y-6">
+                <section>
+                  <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                    Pertandingan Menunggu Input ({scheduledKnockouts.length})
+                  </h3>
+                  {scheduledKnockouts.length === 0 ? (
+                    <p className="text-slate-500 text-sm">Tidak ada pertandingan gugur yang menunggu, atau bracket belum digenerate.</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {scheduledKnockouts.map((k) => (
+                        <MatchCard
+                          key={k.id}
+                          player1={k.player1Name || "TBD"}
+                          player2={k.player2Name || "TBD"}
+                          score1={null}
+                          score2={null}
+                          status="SCHEDULED"
+                          groupName={k.roundText}
+                          onInput={() => openScoreModal({ type: "knockout", match: k })}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {doneKnockouts.length > 0 && (
+                  <section>
+                    <h3 className="text-slate-400 font-bold mb-3 text-sm uppercase tracking-wider">
+                      Selesai ({doneKnockouts.length})
+                    </h3>
+                    <div className="grid gap-2">
+                      {doneKnockouts.map((k) => (
+                        <MatchCard
+                          key={k.id}
+                          player1={k.player1Name || "TBD"}
+                          player2={k.player2Name || "TBD"}
+                          score1={k.score1}
+                          score2={k.score2}
+                          status="DONE"
+                          groupName={k.roundText}
+                          refereeName={k.refereeName}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Score Input Modal */}
+      {scoreTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-white/15 rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-white text-center mb-1">Input Skor</h3>
+            <p className="text-xs text-yellow-400 text-center mb-5 font-semibold">Wasit: {refereeName}</p>
+
+            <form onSubmit={handleSubmitScore} className="space-y-5">
+              <div className="flex items-center gap-3">
+                {/* Player 1 */}
+                <div className="flex-1 text-center">
+                  <p className="text-xs text-slate-400 font-medium mb-2 leading-tight truncate">
+                    {scoreTarget.type === "group"
+                      ? scoreTarget.match.player1Name
+                      : scoreTarget.match.player1Name || "TBD"}
+                  </p>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={tempScore1}
+                    onChange={(e) => setTempScore1(e.target.value)}
+                    className="w-full h-20 text-center text-4xl font-black bg-white/10 border-2 border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    autoFocus
+                  />
+                </div>
+                <span className="text-2xl font-black text-slate-500 mt-4">VS</span>
+                {/* Player 2 */}
+                <div className="flex-1 text-center">
+                  <p className="text-xs text-slate-400 font-medium mb-2 leading-tight truncate">
+                    {scoreTarget.type === "group"
+                      ? scoreTarget.match.player2Name
+                      : scoreTarget.match.player2Name || "TBD"}
+                  </p>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={tempScore2}
+                    onChange={(e) => setTempScore2(e.target.value)}
+                    className="w-full h-20 text-center text-4xl font-black bg-white/10 border-2 border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {submitMsg && (
+                <div className={`text-center text-sm font-semibold rounded-xl px-4 py-3 ${
+                  submitMsg.type === "success"
+                    ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                    : "bg-red-500/20 text-red-400 border border-red-500/30"
+                }`}>
+                  {submitMsg.text}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setScoreTarget(null)}
+                  className="flex-1 py-3 bg-white/10 border border-white/15 text-slate-300 rounded-xl font-bold hover:bg-white/20 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || tempScore1 === "" || tempScore2 === ""}
+                  className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 text-slate-900 rounded-xl font-black transition-colors disabled:opacity-40 shadow-lg shadow-yellow-400/20"
+                >
+                  {submitting ? "Menyimpan..." : "Simpan Skor"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// MATCH CARD COMPONENT
+// ============================================================
+function MatchCard({
+  player1,
+  player2,
+  score1,
+  score2,
+  status,
+  groupName,
+  refereeName,
+  onInput,
+}: {
+  player1: string;
+  player2: string;
+  score1: number | null;
+  score2: number | null;
+  status: string;
+  groupName?: string;
+  refereeName?: string | null;
+  onInput?: () => void;
+}) {
+  const isDone = status === "DONE";
+  const p1Wins = isDone && score1 !== null && score2 !== null && score1 > score2;
+  const p2Wins = isDone && score1 !== null && score2 !== null && score2 > score1;
+
+  return (
+    <div className={`rounded-2xl border p-4 transition-all ${
+      isDone
+        ? "bg-white/5 border-white/10"
+        : "bg-white/10 border-yellow-400/30 hover:border-yellow-400/60"
+    }`}>
+      <div className="flex items-center gap-1 mb-3">
+        {groupName && (
+          <span className="text-xs text-slate-500 font-medium">{groupName}</span>
+        )}
+        <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${
+          isDone ? "bg-green-500/20 text-green-400" : "bg-yellow-400/20 text-yellow-400"
+        }`}>
+          {isDone ? "Selesai" : "Menunggu"}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <p className={`flex-1 font-bold text-sm truncate ${p1Wins ? "text-yellow-300" : "text-white"}`}>
+          {player1} {p1Wins && "🏆"}
+        </p>
+        {isDone ? (
+          <div className="text-center font-black text-lg text-white shrink-0">
+            <span className={p1Wins ? "text-yellow-300" : ""}>{score1}</span>
+            <span className="text-slate-500 mx-1">–</span>
+            <span className={p2Wins ? "text-yellow-300" : ""}>{score2}</span>
+          </div>
+        ) : (
+          <div className="text-center shrink-0">
+            <span className="text-slate-500 font-bold text-xs">VS</span>
+          </div>
+        )}
+        <p className={`flex-1 font-bold text-sm truncate text-right ${p2Wins ? "text-yellow-300" : "text-white"}`}>
+          {p2Wins && "🏆 "}{player2}
+        </p>
+      </div>
+
+      {refereeName && (
+        <p className="text-xs text-slate-500 mt-2 text-center">Wasit: {refereeName}</p>
+      )}
+
+      {!isDone && onInput && (
+        <button
+          onClick={onInput}
+          className="w-full mt-3 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 rounded-xl font-bold text-sm transition-colors shadow shadow-yellow-400/20"
+        >
+          Input Skor
+        </button>
+      )}
+    </div>
+  );
+}

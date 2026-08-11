@@ -46,6 +46,26 @@ export default function AdminLayout({
           >
             <span>🛡️</span> Daftar Club
           </Link>
+          <Link
+            href="/admin/struktur"
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <span>🌳</span> Struktur Organisasi
+          </Link>
+          <Link
+            href="/admin/wasit-log"
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <span>🏁</span> Log Wasit
+          </Link>
+          <a
+            href="/wasit"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <span>🔗</span> Buka Portal Wasit
+          </a>
 
 
         </nav>

@@ -1,10 +1,8 @@
 // app/(public)/tournament/[id]/actions.ts
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from "@/lib/prisma";
 import { revalidatePath } from 'next/cache'
-
-const prisma = new PrismaClient()
 
 import { buildCategoryInfo, autoAssignToPool } from '@/lib/tournamentCategory'
 

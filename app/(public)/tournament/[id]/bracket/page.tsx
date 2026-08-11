@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import KnockoutBracketRender from "@/app/admin/(dashboard)/tournaments/[id]/brackets/KnockoutBracketRender";
 
-const prisma = new PrismaClient();
+export const revalidate = 30;
 
 export default async function PublicBracketPage({
   params,

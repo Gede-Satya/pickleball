@@ -261,7 +261,7 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { matchId, player1Name, player2Name, score1, score2, reset } = body;
+    const { matchId, player1Name, player2Name, score1, score2, reset, refereeName } = body;
 
     if (!matchId) {
       return errorResponse("matchId wajib diisi ⚠️", 400, "BAD_REQUEST");
@@ -287,6 +287,7 @@ export async function PUT(
                  score1: null,
                  score2: null,
                  winnerName: null,
+                 refereeName: null,
                  status: "SCHEDULED"
             }
         });
@@ -304,7 +305,6 @@ export async function PUT(
         return successResponse("Skor berhasil direset 🔄");
     }
 
-    // Input Skor Normal
     const s1 = Number(score1);
     const s2 = Number(score2);
 
@@ -314,22 +314,20 @@ export async function PUT(
         return errorResponse("Skor tidak boleh seri untuk pertandingan sistem gugur ⚠️", 400, "BAD_REQUEST");
     }
 
-    // Update match
+    // Update match dengan refereeName
     await prisma.knockoutMatch.update({
       where: { id: Number(matchId) },
       data: {
         score1: s1,
         score2: s2,
         winnerName: winner,
+        refereeName: refereeName?.trim() || "Admin",
         status: "DONE",
       },
     });
 
     // Pindahkan winner ke match selanjutnya (kalau ada)
     if (matchBefore.nextMatchId) {
-        // Cek apakah slot p1 atau p2 yang kosong/harusnya diisi oleh matchBefore ini
-        // Posisi di nextMatch ditentukan oleh ganjil-genap dari matchOrder ronde sebelumnya
-        // Aturan ganjil genap: i % 2 == 0 masuk ke player1Name, i % 2 == 1 ke player2Name
         const isPlayer1Pos = matchBefore.matchOrder % 2 === 0;
         
         await prisma.knockoutMatch.update({
@@ -344,3 +342,4 @@ export async function PUT(
     return errorResponse("Gagal update match ❌", 500, "INTERNAL_SERVER_ERROR");
   }
 }
+

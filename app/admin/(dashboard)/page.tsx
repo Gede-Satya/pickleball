@@ -4,6 +4,47 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Tipe data gabungan untuk satu baris aktivitas
+type ActivityItem = {
+  id: number;
+  type: "turnamen" | "pemain" | "berita" | "club";
+  title: string;
+  createdAt: Date;
+};
+
+// Ambil waktu relatif sederhana (mis. "5 menit lalu", "2 hari lalu")
+function getRelativeTime(date: Date): string {
+  const diffMs = Date.now() - new Date(date).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffMin < 1) return "Baru saja";
+  if (diffMin < 60) return `${diffMin} menit lalu`;
+  if (diffHour < 24) return `${diffHour} jam lalu`;
+  if (diffDay < 7) return `${diffDay} hari lalu`;
+  return new Date(date).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+// Konfigurasi tampilan per jenis aktivitas
+type ActivityConfig = {
+  icon: string;
+  label: string;
+  bg: string;
+  text: string;
+};
+
+const activityConfig: { [key in ActivityItem["type"]]: ActivityConfig } = {
+  turnamen: { icon: "🏆", label: "Turnamen baru ditambahkan", bg: "bg-blue-100", text: "text-blue-600" },
+  pemain: { icon: "👥", label: "Pemain baru terdaftar", bg: "bg-green-100", text: "text-green-600" },
+  berita: { icon: "📝", label: "Berita baru dipublikasikan", bg: "bg-yellow-100", text: "text-yellow-600" },
+  club: { icon: "🛡️", label: "Club afiliasi baru ditambahkan", bg: "bg-purple-100", text: "text-purple-600" },
+};
+
 export default async function AdminDashboard() {
 
   // Menarik data jumlah baris dari MySQL secara paralel agar loading lebih cepat
@@ -14,6 +55,39 @@ export default async function AdminDashboard() {
     prisma.post.count(),                           // Menghitung total artikel/berita
     prisma.club.count()                            // Menghitung total club afiliasi
   ]);
+
+  // Ambil 5 data terbaru dari masing-masing tabel, lalu gabungkan & urutkan
+  const [recentTurnamen, recentPemain, recentBerita, recentClub] = await Promise.all([
+    prisma.tournament.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, createdAt: true },
+    }),
+    prisma.player.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, fullName: true, createdAt: true },
+    }),
+    prisma.post.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, createdAt: true },
+    }),
+    prisma.club.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, createdAt: true },
+    }),
+  ]);
+
+  const activities: ActivityItem[] = [
+    ...recentTurnamen.map((t) => ({ id: t.id, type: "turnamen" as const, title: t.name, createdAt: t.createdAt })),
+    ...recentPemain.map((p) => ({ id: p.id, type: "pemain" as const, title: p.fullName, createdAt: p.createdAt })),
+    ...recentBerita.map((b) => ({ id: b.id, type: "berita" as const, title: b.title, createdAt: b.createdAt })),
+    ...recentClub.map((c) => ({ id: c.id, type: "club" as const, title: c.name, createdAt: c.createdAt })),
+  ]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 8); // Tampilkan 8 aktivitas terbaru saja
 
   return (
     <div className="space-y-6">
@@ -74,7 +148,33 @@ export default async function AdminDashboard() {
           <h2 className="font-bold text-slate-800">Aktivitas Terbaru</h2>
         </div>
         <div className="p-6">
-          <p className="text-slate-500 text-sm text-center py-8">Belum ada aktivitas terbaru hari ini.</p>
+          {activities.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-8">Belum ada aktivitas terbaru hari ini.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {activities.map((item) => {
+                const config = activityConfig[item.type];
+                return (
+                  <li key={`${item.type}-${item.id}`} className="flex items-center gap-4 py-3">
+                    <div
+                      className={`w-10 h-10 shrink-0 ${config.bg} ${config.text} rounded-lg flex items-center justify-center text-lg`}
+                    >
+                      {config.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-800 truncate">
+                        <span className="font-medium">{config.label}:</span>{" "}
+                        <span className="text-slate-600">{item.title}</span>
+                      </p>
+                    </div>
+                    <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">
+                      {getRelativeTime(item.createdAt)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
 

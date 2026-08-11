@@ -89,7 +89,7 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { matchId, score1, score2 } = body;
+    const { matchId, score1, score2, refereeName } = body;
 
     if (matchId === undefined || score1 === undefined || score2 === undefined) {
       return errorResponse("matchId, score1, score2 wajib diisi ⚠️", 400, "BAD_REQUEST");
@@ -97,9 +97,6 @@ export async function PUT(
 
     const s1 = Number(score1);
     const s2 = Number(score2);
-
-    // Tentukan pemenang
-    const winnerName = s1 > s2 ? undefined : s2 > s1 ? undefined : null;
 
     // Ambil match yang akan di-update
     const match = await prisma.groupMatch.findUnique({
@@ -110,15 +107,17 @@ export async function PUT(
       return errorResponse("Match tidak ditemukan 🔍", 404, "NOT_FOUND");
     }
 
-    // Update match
+    // Tentukan pemenang
     const winner = s1 > s2 ? match.player1Name : s2 > s1 ? match.player2Name : null;
 
+    // Update match dengan refereeName
     await prisma.groupMatch.update({
       where: { id: Number(matchId) },
       data: {
         score1: s1,
         score2: s2,
         winnerName: winner,
+        refereeName: refereeName?.trim() || "Admin",
         status: "DONE",
       },
     });
