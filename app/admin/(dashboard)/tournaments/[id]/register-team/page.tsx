@@ -2,6 +2,7 @@ import React from 'react'
 import { PrismaClient } from '@prisma/client'
 import RegistrationForm from './RegistrationForm'
 import Link from 'next/link'
+import { parseTournamentGrades } from '@/lib/tournamentGrades'
 
 const prisma = new PrismaClient()
 
@@ -29,6 +30,9 @@ export default async function RegisterTeamPage({ params }: { params: Promise<{ i
     orderBy: { fullName: 'asc' }
   })
 
+  // Tingkat yang aktif untuk turnamen ini (mengikuti setting admin)
+  const activeGrades = parseTournamentGrades(tournament.gradeOptions)
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-4 mb-6">
@@ -51,7 +55,7 @@ export default async function RegisterTeamPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <RegistrationForm tournamentId={tournamentId} players={players} />
+      <RegistrationForm tournamentId={tournamentId} players={players} grades={activeGrades} />
 
     </div>
   )

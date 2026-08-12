@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 const NAV_ITEMS = [
   { href: "/admin", icon: "📊", label: "Dashboard", exact: true },
   { href: "/admin/tournaments", icon: "🏆", label: "Turnamen" },
+  { href: "/admin/schedule", icon: "📅", label: "Jadwal Pertandingan" },
   { href: "/admin/posts", icon: "📝", label: "Berita & Artikel" },
   { href: "/admin/players", icon: "🥎", label: "Pemain terdaftar" },
   { href: "/admin/clubs", icon: "🛡️", label: "Daftar Club" },

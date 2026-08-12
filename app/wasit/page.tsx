@@ -46,6 +46,8 @@ export default function WasitPage() {
   const [refereeName, setRefereeName] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [loginError, setLoginError] = useState("");
+  // Menunggu pemulihan nama dari localStorage agar login tidak berkedip saat refresh
+  const [mounted, setMounted] = useState(false);
 
   // Data
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -69,13 +71,27 @@ export default function WasitPage() {
   const [submitMsg, setSubmitMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // ======================== AUTH ========================
+  // Pulihkan nama wasit tersimpan (session per device) setelah refresh
+  useEffect(() => {
+    const savedName = localStorage.getItem("wasit-referee-name");
+    if (savedName) {
+      setRefereeName(savedName);
+      setStep("dashboard");
+      loadTournaments();
+    }
+    setMounted(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!nameInput.trim()) {
       setLoginError("Nama wasit wajib diisi.");
       return;
     }
-    setRefereeName(nameInput.trim());
+    const name = nameInput.trim();
+    setRefereeName(name);
+    localStorage.setItem("wasit-referee-name", name);
     setStep("dashboard");
     loadTournaments();
   }
@@ -241,6 +257,20 @@ export default function WasitPage() {
   };
 
   // ============================================================
+  // RENDER — SPLASH (saat pemulihan session)
+  // ============================================================
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <span className="text-4xl inline-block animate-bounce">🏁</span>
+          <p className="text-slate-400 mt-4 text-sm">Memuat portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
   // RENDER — LOGIN
   // ============================================================
   if (step === "login") {
@@ -307,7 +337,7 @@ export default function WasitPage() {
             <p className="text-xs text-yellow-400 font-semibold">Wasit: {refereeName}</p>
           </div>
           <button
-            onClick={() => { setStep("login"); setRefereeName(""); setNameInput(""); setSelectedTournament(null); }}
+            onClick={() => { localStorage.removeItem("wasit-referee-name"); setStep("login"); setRefereeName(""); setNameInput(""); setSelectedTournament(null); }}
             className="text-xs px-4 py-2 bg-white/10 border border-white/20 text-slate-300 rounded-lg hover:bg-white/20 transition-colors"
           >
             Ganti Wasit

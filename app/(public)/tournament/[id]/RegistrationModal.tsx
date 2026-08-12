@@ -2,13 +2,30 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 import { registerPlayer } from "./action";
-import { showSuccess } from "@/lib/swal";
+import { showSuccess, showError } from "@/lib/swal";
+import { parseTournamentGrades, gradeToLabel } from "@/lib/tournamentGrades";
 
-export default function RegistrationModal({ tournament }: { tournament: any }) {
+type RegistrationTournament = {
+  id: number;
+  name: string;
+  status: string;
+  registrationFee: number;
+  gradeOptions: string | null;
+};
+
+export default function RegistrationModal({ tournament }: { tournament: RegistrationTournament }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [matchType, setMatchType] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Tingkat yang tersedia mengikuti setting turnamen (pilihan admin)
+  const availableGrades = parseTournamentGrades(tournament.gradeOptions);
 
   if (tournament.status !== "UPCOMING") {
     return (
@@ -25,22 +42,74 @@ export default function RegistrationModal({ tournament }: { tournament: any }) {
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    // Kalau MIXED, gabungkan nama putra + putri jadi fullName
-    if (matchType === "MIXED") {
-      const namaPutra = formData.get("namaPutra") as string;
-      const namaPutri = formData.get("namaPutri") as string;
-      formData.set("fullName", `${namaPutra} / ${namaPutri}`);
-      formData.delete("namaPutra");
-      formData.delete("namaPutri");
+    // MIXED: namaPutra & namaPutri tetap terkirim terpisah,
+    // server yang membuat tim berisi 2 pemain.
+
+    try {
+      await registerPlayer(formData);
+
+      form.reset();
+      setMatchType("");
+      setPaymentMethod("");
+      setProofPreview(null);
+      setIsSubmitting(false);
+      setIsOpen(false);
+
+      if (tournament.registrationFee > 0) {
+        // Turnamen berbayar: ajak ke halaman cek pembayaran
+        const result = await Swal.fire({
+          icon: "success",
+          title: "Pendaftaran Berhasil! 🎉",
+          html:
+            "Data Anda telah berhasil dikirim. Pastikan menyelesaikan pembayaran sesuai metode yang dipilih — statusnya bisa dicek kapan saja di halaman pembayaran.",
+          showCancelButton: true,
+          confirmButtonText: "Lihat Status Pembayaran",
+          cancelButtonText: "Tutup",
+          confirmButtonColor: "#4f46e5",
+          cancelButtonColor: "#94a3b8",
+          reverseButtons: true,
+          customClass: {
+            popup: "swal-rounded",
+            confirmButton: "swal-btn",
+            cancelButton: "swal-btn",
+          },
+        });
+        if (result.isConfirmed) {
+          router.push("/payment");
+        }
+      } else {
+        showSuccess("Data Anda telah berhasil dikirim.", "Pendaftaran Berhasil! 🎉");
+      }
+    } catch (error) {
+      setIsSubmitting(false);
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat mendaftar. Silakan coba lagi."
+      );
+    }
+  };
+
+  // Validasi client-side bukti transfer (gambar, maks 5MB)
+  const handleProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      showError("Bukti pembayaran harus berupa gambar (JPG/PNG/WebP).");
+      e.target.value = "";
+      setProofPreview(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showError("Ukuran bukti pembayaran maksimal 5MB.");
+      e.target.value = "";
+      setProofPreview(null);
+      return;
     }
 
-    await registerPlayer(formData);
-
-    form.reset();
-    setMatchType("");
-    setIsSubmitting(false);
-    setIsOpen(false);
-    showSuccess("Data Anda telah berhasil dikirim.", "Pendaftaran Berhasil! 🎉");
+    if (proofPreview) URL.revokeObjectURL(proofPreview);
+    setProofPreview(URL.createObjectURL(file));
   };
 
   return (
@@ -89,17 +158,17 @@ export default function RegistrationModal({ tournament }: { tournament: any }) {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-slate-700 block mb-1">Tingkat Sekolah (Grade) *</label>
+                  <label className="text-sm font-semibold text-slate-700 block mb-1">Tingkat (Grade) *</label>
                   <select
                     name="grade"
                     required
                     defaultValue=""
                     className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400 bg-white"
                   >
-                    <option value="" disabled>-- Pilih Grade --</option>
-                    <option value="SD">SD</option>
-                    <option value="SMP">SMP</option>
-                    <option value="SMA">SMA</option>
+                    <option value="" disabled>-- Pilih Tingkat --</option>
+                    {availableGrades.map((grade) => (
+                      <option key={grade} value={grade}>{gradeToLabel(grade)}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -131,10 +200,36 @@ export default function RegistrationModal({ tournament }: { tournament: any }) {
                     />
                   </div>
                 </div>
+              ) : matchType === "DOUBLE" ? (
+                <div className="space-y-3">
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 font-medium">
+                    🏓 Double: isi 2 nama pemain dengan gender yang sama (sesuai pilihan Gender di bawah)
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-1">Nama Pemain 1 *</label>
+                    <input
+                      type="text"
+                      name="namaPemain1"
+                      required
+                      placeholder="Nama lengkap pemain pertama"
+                      className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-1">Nama Pemain 2 *</label>
+                    <input
+                      type="text"
+                      name="namaPemain2"
+                      required
+                      placeholder="Nama lengkap pemain kedua"
+                      className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                </div>
               ) : (
                 <div>
                   <label className="text-sm font-semibold text-slate-700 block mb-1">
-                    Nama Lengkap {matchType === "DOUBLE" ? "Tim/Pemain" : "Pemain"} *
+                    Nama Lengkap Pemain *
                   </label>
                   <input
                     type="text"
@@ -186,6 +281,64 @@ export default function RegistrationModal({ tournament }: { tournament: any }) {
                   className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400"
                 />
               </div>
+
+              {/* Pembayaran — hanya muncul jika turnamen berbayar */}
+              {tournament.registrationFee > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-slate-700">Biaya Pendaftaran</p>
+                    <p className="font-bold text-yellow-700">
+                      Rp {tournament.registrationFee.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block mb-1">Metode Pembayaran *</label>
+                    <select
+                      name="paymentMethod"
+                      required
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-yellow-400 bg-white"
+                    >
+                      <option value="" disabled>-- Pilih Metode --</option>
+                      <option value="TRANSFER">Transfer Bank</option>
+                      <option value="QRIS">QRIS</option>
+                      <option value="EWALLET">E-Wallet</option>
+                      <option value="VENUE">Bayar di Tempat (Venue)</option>
+                    </select>
+                  </div>
+
+                  {paymentMethod && paymentMethod !== "VENUE" && (
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700 block mb-1">
+                        Upload Bukti Transfer *
+                      </label>
+                      <input
+                        type="file"
+                        name="paymentProof"
+                        required
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleProofChange}
+                        className="w-full text-sm p-2.5 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-yellow-400 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-yellow-400 file:text-slate-900 file:font-semibold file:text-sm file:cursor-pointer"
+                      />
+                      {proofPreview && (
+                        <img
+                          src={proofPreview}
+                          alt="Pratinjau bukti pembayaran"
+                          className="mt-2 w-32 h-32 object-cover rounded-lg border border-slate-200"
+                        />
+                      )}
+                      <p className="text-xs text-slate-500 mt-1">
+                        Transfer ke rekening resmi panitia, lalu unggah bukti transfer (JPG/PNG/WebP, maks 5MB).
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-slate-500">
+                    Pembayaran dikonfirmasi oleh panitia setelah bukti transfer diperiksa.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"

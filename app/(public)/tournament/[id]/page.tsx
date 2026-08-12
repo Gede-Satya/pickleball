@@ -75,18 +75,26 @@ export default async function TournamentDetailPage({
             {tournament.description || "Belum ada deskripsi lengkap."}
           </div>
 
-          {/* 🏆 TOMBOL LIHAT BAGAN TURNAMEN */}
-          <div className="bg-indigo-50 p-6 md:p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-indigo-100 mb-6">
+          {/* 🏆 TOMBOL LIHAT JADWAL, KLASEMEN & BAGAN TURNAMEN */}
+          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 md:p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-indigo-100 mb-6">
             <div>
-              <h4 className="text-lg font-bold text-slate-900 mb-1">📊 Bagan & Klasemen</h4>
-              <p className="text-sm text-slate-500">Lihat bagan pertandingan, hasil, dan peringkat pemain dari turnamen ini.</p>
+              <h4 className="text-lg font-bold text-slate-900 mb-1">📅 Jadwal, Klasemen & Bagan</h4>
+              <p className="text-sm text-slate-500">Cek jadwal tanding per lapangan, poin klasemen pool, dan bagan knockout terkini.</p>
             </div>
-            <Link 
-              href={`/tournament/${id}/bracket`}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm whitespace-nowrap"
-            >
-              Lihat Bagan →
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link 
+                href={`/tournament/${id}/schedule`}
+                className="px-5 py-3 bg-amber-500 text-slate-950 rounded-xl font-bold hover:bg-amber-400 transition-all shadow-sm whitespace-nowrap"
+              >
+                📅 Jadwal & Klasemen →
+              </Link>
+              <Link 
+                href={`/tournament/${id}/bracket`}
+                className="px-5 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-sm whitespace-nowrap"
+              >
+                🏆 Bagan Knockout →
+              </Link>
+            </div>
           </div>
 
           {/* 🔥 TOMBOL MODAL PENDAFTARAN (Client Component) */}
@@ -96,8 +104,18 @@ export default async function TournamentDetailPage({
               <p className="text-sm text-slate-500">Pastikan Anda telah membaca seluruh syarat dan ketentuan sebelum mendaftar.</p>
             </div>
             
-            {/* Memanggil Modal dan mengirimkan data turnamen */}
-            <RegistrationModal tournament={tournament} />
+            <div className="flex flex-col items-center gap-2">
+              {/* Memanggil Modal dan mengirimkan data turnamen */}
+              <RegistrationModal tournament={tournament} />
+              {tournament.registrationFee > 0 && (
+                <Link
+                  href="/payment"
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-semibold whitespace-nowrap"
+                >
+                  Sudah daftar? Cek status pembayaran →
+                </Link>
+              )}
+            </div>
           </div>
 
         </div>

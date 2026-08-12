@@ -2,6 +2,7 @@ import React from "react";
 import { prisma } from '@/lib/prisma';
 import { updatePlayer } from '../action';
 import Link from 'next/link';
+import { ALL_TOURNAMENT_GRADES, gradeToLabel } from '@/lib/tournamentGrades';
 
 export default async function EditPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -80,9 +81,12 @@ export default async function EditPlayerPage({ params }: { params: Promise<{ id:
               defaultValue={player.grade}
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none text-slate-700 font-medium"
             >
-              <option value="SD">SD</option>
-              <option value="SMP">SMP</option>
-              <option value="SMA">SMA</option>
+              {(ALL_TOURNAMENT_GRADES as readonly string[]).includes(player.grade) ? null : (
+                <option value={player.grade}>{gradeToLabel(player.grade)}</option>
+              )}
+              {ALL_TOURNAMENT_GRADES.map((g) => (
+                <option key={g} value={g}>{gradeToLabel(g)}</option>
+              ))}
             </select>
           </div>
 

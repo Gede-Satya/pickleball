@@ -3,6 +3,7 @@
 import { PrismaClient, TournamentStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { parseGradeOptionsPayload } from '@/lib/tournamentGrades'
 
 const prisma = new PrismaClient()
 
@@ -21,6 +22,9 @@ export async function updateTournament(formData: FormData) {
   // 🔥 AMBIL STRING URL GAMBAR DARI FORM (Bukan File lagi)
   const imageUrl = formData.get('image') as string
 
+  // Tingkat (grade) yang dipilih admin untuk turnamen ini
+  const selectedGrades = parseGradeOptionsPayload(formData.getAll('grades') as string[])
+
   // Buat slug dari nama turnamen
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
 
@@ -37,6 +41,7 @@ export async function updateTournament(formData: FormData) {
       endDate: new Date(endDate),
       registrationFee: parseInt(registrationFee) || 0,
       maxParticipants: parseInt(maxParticipants) || 0,
+      gradeOptions: selectedGrades.length > 0 ? JSON.stringify(selectedGrades) : null,
       status,
       // 🔥 Masukkan URL gambar ke database jika ada!
       ...(imageUrl ? { image: imageUrl } : {}) 

@@ -1,5 +1,8 @@
 import React from "react";
 import { PrismaClient } from '@prisma/client';
+import Link from "next/link";
+
+export const dynamic = 'force-dynamic';
 
 
 const prisma = new PrismaClient();
@@ -50,7 +53,7 @@ export default async function AdminDashboard() {
   // Menarik data jumlah baris dari MySQL secara paralel agar loading lebih cepat
   // Asumsi: Kamu sudah membuat model di schema.prisma untuk tabel-tabel ini
   const [totalTurnamen, totalPemain, totalBerita, totalClub] = await Promise.all([
-    prisma.tournament.count(),                     // Menghitung total turnamen
+    prisma.tournament.count({ where: { deletedAt: null } }),   // Menghitung total turnamen
     prisma.player.count(),                         // Menghitung total pemain
     prisma.post.count(),                           // Menghitung total artikel/berita
     prisma.club.count()                            // Menghitung total club afiliasi
@@ -59,6 +62,7 @@ export default async function AdminDashboard() {
   // Ambil 5 data terbaru dari masing-masing tabel, lalu gabungkan & urutkan
   const [recentTurnamen, recentPemain, recentBerita, recentClub] = await Promise.all([
     prisma.tournament.findMany({
+      where: { deletedAt: null },
       take: 5,
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, createdAt: true },
@@ -79,6 +83,98 @@ export default async function AdminDashboard() {
       select: { id: true, name: true, createdAt: true },
     }),
   ]);
+
+  // ============================================================
+  // DATA PEMBAYARAN — SINGLE = 1 pembayaran per Player,
+  // DOUBLE/MIXED = 1 pembayaran per Team. Gratis (fee 0) dikecualikan.
+  // ============================================================
+  const [paymentPlayers, paymentTeams, activeTournaments] = await Promise.all([
+    prisma.player.findMany({
+      where: { teamId: null },
+      select: {
+        paymentStatus: true,
+        tournamentId: true,
+        tournament: { select: { registrationFee: true } },
+      },
+    }),
+    prisma.team.findMany({
+      select: {
+        paymentStatus: true,
+        tournamentId: true,
+        tournament: { select: { registrationFee: true } },
+      },
+    }),
+    prisma.tournament.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+    }),
+  ]);
+
+  // Gabungkan unit pembayaran (player SINGLE + team) menjadi satu daftar
+  const paymentUnits = [
+    ...paymentPlayers.map((p) => ({
+      tournamentId: p.tournamentId,
+      fee: p.tournament.registrationFee,
+      status: p.paymentStatus,
+    })),
+    ...paymentTeams.map((t) => ({
+      tournamentId: t.tournamentId,
+      fee: t.tournament.registrationFee,
+      status: t.paymentStatus,
+    })),
+  ];
+
+  // Akumulasi per turnamen: belum bayar & lunas + total nominal
+  const perTournament = new Map<
+    number,
+    { unpaidCount: number; unpaidTotal: number; paidCount: number; paidTotal: number }
+  >();
+
+  for (const unit of paymentUnits) {
+    if (unit.fee <= 0) continue; // Gratis tidak dihitung
+    const agg = perTournament.get(unit.tournamentId) ?? {
+      unpaidCount: 0,
+      unpaidTotal: 0,
+      paidCount: 0,
+      paidTotal: 0,
+    };
+    if (unit.status === "PAID") {
+      agg.paidCount += 1;
+      agg.paidTotal += unit.fee;
+    } else {
+      agg.unpaidCount += 1;
+      agg.unpaidTotal += unit.fee;
+    }
+    perTournament.set(unit.tournamentId, agg);
+  }
+
+  // Total keseluruhan
+  let totalUnpaidCount = 0;
+  let totalUnpaidNominal = 0;
+  let totalPaidCount = 0;
+  let totalPaidNominal = 0;
+  for (const agg of perTournament.values()) {
+    totalUnpaidCount += agg.unpaidCount;
+    totalUnpaidNominal += agg.unpaidTotal;
+    totalPaidCount += agg.paidCount;
+    totalPaidNominal += agg.paidTotal;
+  }
+
+  // 5 turnamen dengan tunggakan terbesar
+  const topTunggakan = [...perTournament.entries()]
+    .filter(([, agg]) => agg.unpaidCount > 0)
+    .map(([tournamentId, agg]) => ({
+      name: activeTournaments.find((t) => t.id === tournamentId)?.name ?? `Turnamen #${tournamentId}`,
+      ...agg,
+    }))
+    .sort((a, b) => b.unpaidTotal - a.unpaidTotal)
+    .slice(0, 5);
+
+  const rupiah = new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  });
 
   const activities: ActivityItem[] = [
     ...recentTurnamen.map((t) => ({ id: t.id, type: "turnamen" as const, title: t.name, createdAt: t.createdAt })),
@@ -140,6 +236,69 @@ export default async function AdminDashboard() {
           </div>
         </div>
 
+      </div>
+
+      {/* BAGIAN RINGKASAN PEMBAYARAN */}
+      <div className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <h2 className="font-bold text-slate-800">Ringkasan Pembayaran</h2>
+          <Link
+            href="/admin/players"
+            className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            Kelola Pembayaran →
+          </Link>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Belum Bayar */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4">
+              <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-2xl">
+                ⏳
+              </div>
+              <div>
+                <p className="text-sm text-amber-700 font-semibold">Belum Bayar</p>
+                <p className="text-2xl font-bold text-slate-900">{totalUnpaidCount} pendaftaran</p>
+                <p className="text-sm text-amber-700 font-medium">{rupiah.format(totalUnpaidNominal)}</p>
+              </div>
+            </div>
+
+            {/* Sudah Lunas */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-4">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-2xl">
+                ✓
+              </div>
+              <div>
+                <p className="text-sm text-emerald-700 font-semibold">Sudah Lunas</p>
+                <p className="text-2xl font-bold text-slate-900">{totalPaidCount} pendaftaran</p>
+                <p className="text-sm text-emerald-700 font-medium">{rupiah.format(totalPaidNominal)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tunggakan per turnamen */}
+          {topTunggakan.length > 0 && (
+            <div className="mt-6">
+              <p className="text-sm font-semibold text-slate-600 mb-2">
+                Turnamen dengan tunggakan terbesar
+              </p>
+              <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                {topTunggakan.map((t) => (
+                  <li key={t.name} className="flex items-center justify-between px-4 py-3 bg-white text-sm">
+                    <span className="text-slate-800 font-medium truncate">{t.name}</span>
+                    <span className="flex items-center gap-4 shrink-0">
+                      <span className="text-amber-600 font-semibold">{t.unpaidCount} orang</span>
+                      <span className="text-slate-700 font-bold">{rupiah.format(t.unpaidTotal)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-slate-400 mt-2">
+                * Berbayar (biaya &gt; 0). DOUBLE/MIXED dihitung 1x per tim.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* BAGIAN TABEL AKTIVITAS TERBARU */}

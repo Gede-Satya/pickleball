@@ -6,7 +6,11 @@
  * ============================================================
  */
 
-import { PrismaClient, Grade, Gender, MatchType, PoolStatus } from "@prisma/client";
+import { PrismaClient, Prisma, Gender, MatchType, PoolStatus } from "@prisma/client";
+import { gradeToLabel } from "./tournamentGrades";
+
+// Client biasa atau transaksi berjalan (biar bisa dipakai di dalam prisma.$transaction)
+export type DbClient = PrismaClient | Prisma.TransactionClient;
 
 // ----------------------------------------------------------------
 // TYPE DEFINITIONS
@@ -15,10 +19,15 @@ import { PrismaClient, Grade, Gender, MatchType, PoolStatus } from "@prisma/clie
 export interface CategoryInfo {
   key: string;       // Canonical key: "SMA_MALE_SINGLE"
   label: string;     // Label tampilan: "Pool SMA Putra Single"
-  grade: Grade;
+  grade: string;     // Bebas: "SD", "SMA", "OPEN", "U19", dll
   gender: Gender | null;
   matchType: MatchType;
 }
+
+// Hasil auto-assign: pool (dengan status terbaru) + member yang didaftarkan
+export type AutoAssignedPool = Prisma.PoolGetPayload<{ include: { _count: { select: { members: true } } } }> & {
+  status: PoolStatus;
+};
 
 // ----------------------------------------------------------------
 // HELPER: CATEGORY KEY & LABEL
@@ -34,7 +43,7 @@ export interface CategoryInfo {
  *   getCategoryKey("SMA", null, "MIXED")      → "SMA_MIXED"
  */
 export function getCategoryKey(
-  grade: Grade,
+  grade: string,
   gender: Gender | null,
   matchType: MatchType
 ): string {
@@ -56,7 +65,7 @@ export function getCategoryKey(
  *   "SMA_MIXED"          → "SMA Mixed"
  */
 export function getCategoryLabel(
-  grade: Grade,
+  grade: string,
   gender: Gender | null,
   matchType: MatchType
 ): string {
@@ -70,9 +79,9 @@ export function getCategoryLabel(
       : "Mixed";
 
   if (matchType === "MIXED") {
-    return `${grade} Mixed`;
+    return `${gradeToLabel(grade)} Mixed`;
   }
-  return `${grade} ${genderLabel} ${matchLabel}`;
+  return `${gradeToLabel(grade)} ${genderLabel} ${matchLabel}`;
 }
 
 /**
@@ -86,7 +95,7 @@ export { categoryKeyToLabel } from "./categoryLabel";
  * Menghasilkan CategoryInfo lengkap dari parts.
  */
 export function buildCategoryInfo(
-  grade: Grade,
+  grade: string,
   gender: Gender | null,
   matchType: MatchType
 ): CategoryInfo {
@@ -172,16 +181,28 @@ export function validateGenderForMatchType(
 /**
  * Otomatis daftarkan member (player/team) ke pool yang sesuai.
  *
+ * AMAN UNTUK REGISTRASI MASSAL/BERSAMAAN:
+ * Fungsi ini mengunci baris turnamen (SELECT ... FOR UPDATE) sebelum
+ * memutuskan pool. Dengan begitu transaksi lain yang mendaftar ke turnamen
+ * yang sama harus menunggu sampai transaksi ini selesai, sehingga:
+ *  - Tidak ada pool yang overfill melebihi maxSize
+ *  - Tidak ada pool baru yang dibuat duplikat saat penuh bersamaan
+ *  - Status FULL dihitung dari jumlah member yang akurat
+ *
+ * WAJIB dipanggil di dalam prisma.$transaction(async (tx) => ...) dan
+ * meneruskan `tx` sebagai parameter pertama.
+ *
  * Alur:
- * 1. Cari pool OPEN dengan categoryKey yang sama dalam turnamen
- * 2. Jika ada dan belum penuh → daftarkan
- * 3. Jika pool penuh setelah pendaftaran → ubah status ke FULL
- * 4. Jika tidak ada pool OPEN → buat pool baru (A, B, C...)
+ * 1. Kunci turnamen (serialisasi per turnamen)
+ * 2. Cari pool OPEN dengan categoryKey yang sama dalam turnamen
+ * 3. Jika ada dan belum penuh → daftarkan
+ * 4. Jika pool penuh setelah pendaftaran → ubah status ke FULL
+ * 5. Jika tidak ada pool OPEN → buat pool baru (A, B, C...)
  *
  * @returns Pool yang digunakan (baru atau existing)
  */
 export async function autoAssignToPool(
-  prisma: PrismaClient,
+  db: DbClient,
   tournamentId: number,
   categoryInfo: CategoryInfo,
   memberName: string,
@@ -190,9 +211,13 @@ export async function autoAssignToPool(
     playerId?: number;
     teamId?: number;
   }
-): Promise<{ pool: any; member: any; isNewPool: boolean }> {
+): Promise<{ pool: AutoAssignedPool; member: Prisma.PoolMemberGetPayload<object>; isNewPool: boolean }> {
+  // Kunci baris turnamen: registrasi ke turnamen yang sama berjalan serial,
+  // mencegah race condition overfill / pool duplikat.
+  await (db as PrismaClient).$queryRaw`SELECT id FROM Tournament WHERE id = ${tournamentId} FOR UPDATE`;
+
   // 1. Cari pool OPEN yang masih tersedia dalam kategori ini
-  const existingOpenPool = await prisma.pool.findFirst({
+  const existingOpenPool = await db.pool.findFirst({
     where: {
       tournamentId,
       categoryKey: categoryInfo.key,
@@ -204,7 +229,7 @@ export async function autoAssignToPool(
     orderBy: { id: "asc" },
   });
 
-  let targetPool: any;
+  let targetPool: AutoAssignedPool | null = null;
   let isNewPool = false;
 
   if (existingOpenPool && existingOpenPool._count.members < maxSize) {
@@ -212,30 +237,33 @@ export async function autoAssignToPool(
     targetPool = existingOpenPool;
   } else {
     // Buat pool baru: hitung berapa pool yang sudah ada untuk kategori ini
-    const poolCount = await prisma.pool.count({
+    const poolCount = await db.pool.count({
       where: { tournamentId, categoryKey: categoryInfo.key },
     });
     const newPoolCode = indexToPoolCode(poolCount);
     const newPoolLabel = `Pool ${newPoolCode} ${categoryInfo.label}`;
 
-    targetPool = await prisma.pool.create({
-      data: {
-        label: newPoolLabel,
-        poolCode: newPoolCode,
-        categoryKey: categoryInfo.key,
-        grade: categoryInfo.grade,
-        gender: categoryInfo.gender ?? undefined,
-        matchType: categoryInfo.matchType,
-        maxSize,
-        status: "OPEN",
-        tournamentId,
-      },
-    });
+    targetPool = {
+      ...(await db.pool.create({
+        data: {
+          label: newPoolLabel,
+          poolCode: newPoolCode,
+          categoryKey: categoryInfo.key,
+          grade: categoryInfo.grade,
+          gender: categoryInfo.gender ?? undefined,
+          matchType: categoryInfo.matchType,
+          maxSize,
+          status: "OPEN",
+          tournamentId,
+        },
+      })),
+      _count: { members: 0 },
+    };
     isNewPool = true;
   }
 
   // 2. Daftarkan member ke pool
-  const member = await prisma.poolMember.create({
+  const member = await db.poolMember.create({
     data: {
       poolId: targetPool.id,
       memberName,
@@ -244,19 +272,26 @@ export async function autoAssignToPool(
     },
   });
 
-  // 3. Cek apakah pool sudah penuh setelah penambahan ini
-  const currentCount = await prisma.poolMember.count({
+  // 3. Cek apakah pool sudah penuh setelah penambahan ini.
+  //    Aman tanpa count ulang karena baris turnamen terkunci (serialisasi).
+  let poolStatus: PoolStatus = "OPEN";
+  const currentCount = await db.poolMember.count({
     where: { poolId: targetPool.id },
   });
 
   if (currentCount >= maxSize) {
-    await prisma.pool.update({
+    poolStatus = "FULL";
+    await db.pool.update({
       where: { id: targetPool.id },
       data: { status: "FULL" },
     });
   }
 
-  return { pool: targetPool, member, isNewPool };
+  return {
+    pool: { ...targetPool, status: poolStatus },
+    member,
+    isNewPool,
+  };
 }
 
 // ----------------------------------------------------------------
@@ -268,17 +303,19 @@ export async function autoAssignToPool(
  * Setiap member bermain melawan semua member lain tepat sekali.
  *
  * Rumus: n*(n-1)/2 pertandingan untuk n member.
+ * Semua match dibuat dalam SATU query (createMany) — bukan loop create
+ * satu per satu — sehingga cepat walau pool besar.
  *
- * @returns Array match yang dibuat
+ * @returns Array data match yang dibuat
  */
 export async function generatePoolMatches(
-  prisma: PrismaClient,
+  db: DbClient,
   poolId: number
-): Promise<any[]> {
+): Promise<Prisma.PoolMatchUncheckedCreateInput[]> {
   // Hapus match lama jika ada
-  await prisma.poolMatch.deleteMany({ where: { poolId } });
+  await db.poolMatch.deleteMany({ where: { poolId } });
 
-  const members = await prisma.poolMember.findMany({
+  const members = await db.poolMember.findMany({
     where: { poolId },
     orderBy: { id: "asc" },
   });
@@ -289,26 +326,25 @@ export async function generatePoolMatches(
     );
   }
 
-  const matches: any[] = [];
+  const matchesData: Prisma.PoolMatchUncheckedCreateInput[] = [];
   let matchOrder = 0;
 
   // Round-robin: setiap pasang (i, j) di mana i < j
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
-      const match = await prisma.poolMatch.create({
-        data: {
-          poolId,
-          member1Id: members[i].id,
-          member2Id: members[j].id,
-          status: "SCHEDULED",
-          matchOrder: matchOrder++,
-        },
+      matchesData.push({
+        poolId,
+        member1Id: members[i].id,
+        member2Id: members[j].id,
+        status: "SCHEDULED",
+        matchOrder: matchOrder++,
       });
-      matches.push(match);
     }
   }
 
-  return matches;
+  await db.poolMatch.createMany({ data: matchesData });
+
+  return matchesData;
 }
 
 // ----------------------------------------------------------------
@@ -320,10 +356,10 @@ export async function generatePoolMatches(
  * ranking semua member berdasarkan hasil match yang sudah DONE.
  */
 export async function recalculatePoolStandings(
-  prisma: PrismaClient,
+  db: DbClient,
   poolId: number
 ): Promise<void> {
-  const members = await prisma.poolMember.findMany({
+  const members = await db.poolMember.findMany({
     where: { poolId },
   });
 
@@ -352,7 +388,7 @@ export async function recalculatePoolStandings(
   }
 
   // Ambil semua match DONE
-  const doneMatches = await prisma.poolMatch.findMany({
+  const doneMatches = await db.poolMatch.findMany({
     where: { poolId, status: "DONE" },
   });
 
@@ -396,7 +432,7 @@ export async function recalculatePoolStandings(
   // Update semua member ke DB
   for (let i = 0; i < sorted.length; i++) {
     const m = sorted[i];
-    await prisma.poolMember.update({
+    await db.poolMember.update({
       where: { id: m.id },
       data: {
         ...stats[m.id],
@@ -406,13 +442,13 @@ export async function recalculatePoolStandings(
   }
 
   // Cek apakah semua match sudah DONE untuk ubah status pool → COMPLETED
-  const totalMatches = await prisma.poolMatch.count({ where: { poolId } });
-  const doneCount = await prisma.poolMatch.count({
+  const totalMatches = await db.poolMatch.count({ where: { poolId } });
+  const doneCount = await db.poolMatch.count({
     where: { poolId, status: "DONE" },
   });
 
   if (totalMatches > 0 && totalMatches === doneCount) {
-    await prisma.pool.update({
+    await db.pool.update({
       where: { id: poolId },
       data: { status: "COMPLETED" },
     });

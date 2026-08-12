@@ -77,6 +77,9 @@ export default function Navbar() {
           <Link href="/tournament" className="hover:text-yellow-600 transition-colors">
             Turnamen
           </Link>
+          <Link href="/articles" className="hover:text-yellow-600 transition-colors">
+            Berita
+          </Link>
           
           {/* DROPDOWN DESKTOP: Tentang Kami */}
           <div className="relative group py-2">
@@ -132,6 +135,9 @@ export default function Navbar() {
             </Link>
             <Link href="/tournament" onClick={closeMobileMenu} className="block px-3 py-2 rounded-md font-medium text-slate-900 hover:bg-slate-50 hover:text-yellow-600">
               Turnamen
+            </Link>
+            <Link href="/articles" onClick={closeMobileMenu} className="block px-3 py-2 rounded-md font-medium text-slate-900 hover:bg-slate-50 hover:text-yellow-600">
+              Berita
             </Link>
             
             {/* DROPDOWN HP: Tentang Kami */}

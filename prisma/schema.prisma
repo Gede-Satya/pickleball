@@ -78,13 +78,6 @@ enum Gender {
   FEMALE  // Putri
 }
 
-// Tingkat / jenjang sekolah
-enum Grade {
-  SD   // Sekolah Dasar
-  SMP  // Sekolah Menengah Pertama
-  SMA  // Sekolah Menengah Atas
-}
-
 // Tipe pertandingan
 enum MatchType {
   SINGLE  // Tunggal (1 vs 1)
@@ -117,7 +110,12 @@ model Tournament {
   prizePool       String?
   maxParticipants Int
   poolSize        Int              @default(8) // Jumlah member per pool (default 8)
+  // Tingkat (grade) yang tersedia untuk turnamen ini, format JSON array,
+  // misal '["SD","SMP","SMA","OPEN","U19"]'. null = default (SD, SMP, SMA)
+  gradeOptions    String?
   status          TournamentStatus @default(DRAFT)
+  // Arsip (soft delete): null = aktif, terisi = diarsipkan
+  deletedAt       DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -140,6 +138,25 @@ model Club {
 }
 
 // ============================================================
+// PEMBAYARAN PENDAFTARAN
+// v1: manual — transfer ke rekening panitia, bukti diupload,
+//     admin konfirmasi. Kolom paymentOrderId "cadangan" agar
+//     mudah di-upgrade ke payment gateway (mis. Midtrans).
+// ============================================================
+
+enum PaymentMethod {
+  TRANSFER
+  QRIS
+  EWALLET
+  VENUE // Bayar di tempat (venue) — dikonfirmasi panitia
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+}
+
+// ============================================================
 // MODEL PLAYER — Dengan sistem kategori baru (typed enums)
 // ============================================================
 
@@ -149,7 +166,7 @@ model Player {
   schoolName  String    // Nama sekolah / instansi
   phoneNumber String    // No HP
   gender      Gender    // MALE / FEMALE
-  grade       Grade     // SD / SMP / SMA
+  grade       String    // Tingkat: SD / SMP / SMA / OPEN / U-19, dll (bebas)
   matchType   MatchType // SINGLE / DOUBLE / MIXED
 
   tournamentId Int
@@ -160,6 +177,13 @@ model Player {
   // Referensi ke Team (untuk DOUBLE & MIXED)
   teamId       Int?
   team         Team?  @relation(fields: [teamId], references: [id])
+
+  // Pembayaran (SINGLE disimpan di sini; DOUBLE/MIXED di Team)
+  paymentMethod      PaymentMethod?
+  paymentStatus      PaymentStatus?
+  paymentConfirmedAt DateTime?
+  paymentProof       String? // path gambar bukti transfer
+  paymentOrderId     String? // cadangan untuk payment gateway
 
   poolMembers  PoolMember[]
 
@@ -175,7 +199,7 @@ model Team {
   id           Int       @id @default(autoincrement())
   name         String    // Nama tim, misal: "Budi & Andi"
   matchType    MatchType // DOUBLE atau MIXED
-  grade        Grade     // SD / SMP / SMA
+  grade        String    // Tingkat (bebas)
 
   // categoryKey: "SMA_MALE_DOUBLE" atau "SMA_MIXED"
   categoryKey  String
@@ -185,6 +209,13 @@ model Team {
 
   players      Player[]
   poolMembers  PoolMember[]
+
+  // Pembayaran tim (DOUBLE & MIXED = 1x per tim)
+  paymentMethod      PaymentMethod?
+  paymentStatus      PaymentStatus?
+  paymentConfirmedAt DateTime?
+  paymentProof       String? // path gambar bukti transfer
+  paymentOrderId     String? // cadangan untuk payment gateway
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -204,10 +235,10 @@ model Pool {
   poolCode     String     // "A", "B", "C" — urutan dalam kategori
 
   // Key kategori canonical: "SMA_MALE_SINGLE", "SMP_FEMALE_DOUBLE", "SMA_MIXED"
-  categoryKey  String
+categoryKey  String
 
-  grade        Grade
-  gender       Gender?    // null untuk MIXED
+  grade        String   // Tingkat (bebas)
+  gender       Gender?  // null untuk MIXED
   matchType    MatchType
 
   maxSize      Int        @default(8)
@@ -279,6 +310,9 @@ model PoolMatch {
 
   status       MatchStatus @default(SCHEDULED)
   matchOrder   Int         @default(0)
+
+  court        String?    // Nomor lapangan (diatur panitia via /admin/schedule)
+  startTime    DateTime?  // Waktu tanding (diatur panitia via /admin/schedule)
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -367,6 +401,10 @@ model KnockoutMatch {
   nextMatchId  Int?
   refereeName  String?     // Nama wasit yang memimpin pertandingan ini
   status       MatchStatus @default(SCHEDULED)
+
+  court        String?    // Nomor lapangan (diatur panitia via /admin/schedule)
+  startTime    DateTime?  // Waktu tanding (diatur panitia via /admin/schedule)
+
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 

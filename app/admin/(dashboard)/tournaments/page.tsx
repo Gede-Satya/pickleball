@@ -6,9 +6,16 @@ import TournamentTable from "./TournamentTable";
 const prisma = new PrismaClient();
 
 export default async function TournamentsPage() {
-  // Ambil semua data turnamen dari database, urutkan dari yang terbaru
+  // Ambil turnamen aktif (belum diarsipkan), urutkan dari yang terbaru
   const tournaments = await prisma.tournament.findMany({
+    where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
+  });
+
+  // Turnamen yang diarsipkan (soft delete) untuk tab Arsip
+  const archivedTournaments = await prisma.tournament.findMany({
+    where: { NOT: { deletedAt: null } },
+    orderBy: { deletedAt: "desc" },
   });
 
   return (
@@ -30,7 +37,7 @@ export default async function TournamentsPage() {
       </div>
 
       {/* Tabel Daftar Turnamen */}
-      <TournamentTable tournaments={tournaments} />
+      <TournamentTable tournaments={tournaments} archivedTournaments={archivedTournaments} />
     </div>
   );
 }

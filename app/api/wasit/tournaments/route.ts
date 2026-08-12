@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const tournaments = await prisma.tournament.findMany({
-      where: { status: { in: ["ONGOING", "UPCOMING"] } },
+      where: { status: { in: ["ONGOING", "UPCOMING"] }, deletedAt: null },
       orderBy: { startDate: "asc" },
       select: { id: true, name: true, status: true, startDate: true, endDate: true },
     });

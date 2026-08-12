@@ -13,7 +13,8 @@ export default async function TournamentPage() {
     where: {
       status: {
         not: 'DRAFT'
-      }
+      },
+      deletedAt: null
     },
     orderBy: {
       createdAt: 'desc'
@@ -21,7 +22,7 @@ export default async function TournamentPage() {
   });
 
   // 2. Format data dari database agar sesuai dengan kebutuhan UI
-  const formattedTournaments = rawTournaments.map((t) => {
+  const formatTournament = (t: { id: number; name: string; category: string | null; startDate: Date; endDate: Date; location: string; status: string; image: string | null }) => {
     // Format tanggal: "12 - 15 Agustus 2026"
     const startDate = t.startDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
     const endDate = t.endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -36,10 +37,23 @@ export default async function TournamentPage() {
       location: t.location,
       status: t.status,
       // Karena belum ada field gambar di database, pakai gambar default
-      image: t.image, 
+      image: t.image,
     };
-  });
+  };
 
-  // 3. Render komponen Client dan berikan data yang sudah diformat
-  return <TournamentClient tournaments={formattedTournaments} />;
+  const formattedTournaments = rawTournaments.map(formatTournament);
+
+  // 3. Riwayat: turnamen yang sudah diarsipkan DAN berstatus COMPLETED
+  //    (CANCELED tidak ditampilkan karena bukan history pertandingan)
+  const archivedTournaments = await prisma.tournament.findMany({
+    where: {
+      status: "COMPLETED",
+      NOT: { deletedAt: null },
+    },
+    orderBy: { deletedAt: "desc" },
+  });
+  const formattedArchived = archivedTournaments.map(formatTournament);
+
+  // 4. Render komponen Client dan berikan data yang sudah diformat
+  return <TournamentClient tournaments={formattedTournaments} archivedTournaments={formattedArchived} />;
 }

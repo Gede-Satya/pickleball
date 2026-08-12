@@ -16,8 +16,10 @@ interface Tournament {
 
 export default function TournamentClient({
   tournaments,
+  archivedTournaments = [],
 }: {
   tournaments: Tournament[];
+  archivedTournaments?: Tournament[];
 }) {
   const [activeTournament, setActiveTournament] = useState<Tournament | null>(
     null,
@@ -45,67 +47,29 @@ export default function TournamentClient({
               </p>
             ) : (
               tournaments.map((tourney) => (
-                <div
-                  key={tourney.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group"
-                >
-                  <div className="h-48 w-full relative overflow-hidden bg-slate-200">
-                    <Image
-                      src={tourney.image || "/no-image.png"}
-                      alt={tourney.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/90 backdrop-blur-sm shadow-sm">
-                      {tourney.status === "ONGOING" && (
-                        <span className="text-green-600">Sedang Berjalan</span>
-                      )}
-                      {tourney.status === "UPCOMING" && (
-                        <span className="text-yellow-600">Akan Datang</span>
-                      )}
-                      {tourney.status === "COMPLETED" && (
-                        <span className="text-slate-600">Selesai</span>
-                      )}
-                      {tourney.status === "DRAFT" && (
-                        <span className="text-slate-400">Draft</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="p-6 flex flex-col flex-grow">
-                    <span className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-2">
-                      {tourney.category}
-                    </span>
-                    <h3 className="text-xl font-bold text-slate-900 mb-4 line-clamp-2">
-                      {tourney.title}
-                    </h3>
-                    <div className="space-y-2 mb-6 text-sm text-slate-600">
-                      <div className="flex items-center gap-2">
-                        <span>📅</span> {tourney.date}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span>📍</span> {tourney.location}
-                      </div>
-                    </div>
-                   {/* 🔥 INI KUNCI UTAMANYA: Tombol menuju halaman Detail [id] */}
-      <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
-        <span className="text-xs font-bold px-3 py-1 bg-slate-100 rounded-full text-slate-600">
-          {tourney.status}
-        </span>
-        
-        {/* Tombol Link yang mengarah ke /tournament/1, /tournament/2, dst */}
-        <Link 
-          href={`/tournament/${tourney.id}`} 
-          className="text-yellow-600 font-bold hover:text-yellow-700 text-sm"
-        >
-          Lihat Detail & Daftar &rarr;
-        </Link>
-      </div>
-                  </div>
-                </div>
+                <TournamentCard key={tourney.id} tourney={tourney} />
               ))
             )}
           </div>
+
+          {/* Riwayat Turnamen (arsip COMPLETED) */}
+          {archivedTournaments.length > 0 && (
+            <div className="mt-16">
+              <div className="mb-8 text-center">
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                  🏆 Riwayat Turnamen
+                </h2>
+                <p className="text-slate-500 text-sm">
+                  Kejuaraan yang telah selesai dan hasilnya masih bisa dilihat.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {archivedTournaments.map((tourney) => (
+                  <TournamentCard key={tourney.id} tourney={tourney} archived />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -143,6 +107,81 @@ export default function TournamentClient({
             Bagan dan hasil pertandingan untuk turnamen ini belum tersedia atau
             sedang dalam tahap penyusunan.
           </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// KARTU TURNAMEN (dipakai untuk daftar aktif & riwayat)
+// ============================================================
+function TournamentCard({
+  tourney,
+  archived = false,
+}: {
+  tourney: Tournament;
+  archived?: boolean;
+}) {
+  return (
+    <div
+      className={`bg-white rounded-2xl overflow-hidden border shadow-sm transition-all duration-300 flex flex-col group ${
+        archived
+          ? "border-slate-300 hover:shadow-lg opacity-90"
+          : "border-slate-200 hover:shadow-xl"
+      }`}
+    >
+      <div className="h-48 w-full relative overflow-hidden bg-slate-200">
+        <Image
+          src={tourney.image || "/no-image.png"}
+          alt={tourney.title}
+          fill
+          className={`object-cover group-hover:scale-105 transition-transform duration-500 ${
+            archived ? "grayscale-[30%]" : ""
+          }`}
+        />
+        <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/90 backdrop-blur-sm shadow-sm">
+          {archived || tourney.status === "COMPLETED" ? (
+            <span className="text-slate-600">Selesai</span>
+          ) : tourney.status === "ONGOING" ? (
+            <span className="text-green-600">Sedang Berjalan</span>
+          ) : tourney.status === "UPCOMING" ? (
+            <span className="text-yellow-600">Akan Datang</span>
+          ) : tourney.status === "DRAFT" ? (
+            <span className="text-slate-400">Draft</span>
+          ) : (
+            <span className="text-slate-500">{tourney.status}</span>
+          )}
+        </div>
+      </div>
+
+      <div className="p-6 flex flex-col flex-grow">
+        <span className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-2">
+          {tourney.category}
+        </span>
+        <h3 className="text-xl font-bold text-slate-900 mb-4 line-clamp-2">
+          {tourney.title}
+        </h3>
+        <div className="space-y-2 mb-6 text-sm text-slate-600">
+          <div className="flex items-center gap-2">
+            <span>📅</span> {tourney.date}
+          </div>
+          <div className="flex items-center gap-2">
+            <span>📍</span> {tourney.location}
+          </div>
+        </div>
+
+        <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
+          <span className="text-xs font-bold px-3 py-1 bg-slate-100 rounded-full text-slate-600">
+            {archived ? "Riwayat" : tourney.status}
+          </span>
+
+          <Link
+            href={`/tournament/${tourney.id}`}
+            className="text-yellow-600 font-bold hover:text-yellow-700 text-sm"
+          >
+            {archived ? "Lihat Hasil" : "Lihat Detail & Daftar"} &rarr;
+          </Link>
         </div>
       </div>
     </div>

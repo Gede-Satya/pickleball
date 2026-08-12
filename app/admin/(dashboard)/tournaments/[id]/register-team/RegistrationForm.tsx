@@ -1,20 +1,20 @@
 'use client'
 
 import React, { useState } from 'react'
-import type { MatchType, Grade, Gender, Player } from '@prisma/client'
+import type { MatchType, Player } from '@prisma/client'
 import { processTeamRegistration } from './action'
-import { useActionState } from 'react'
-import Link from 'next/link'
 import { showError } from '@/lib/swal'
+import { gradeToLabel } from '@/lib/tournamentGrades'
 
 interface RegistrationFormProps {
   tournamentId: number
   players: Player[]
+  grades: string[]
 }
 
-export default function RegistrationForm({ tournamentId, players }: RegistrationFormProps) {
+export default function RegistrationForm({ tournamentId, players, grades }: RegistrationFormProps) {
   const [matchType, setMatchType] = useState<MatchType>('SINGLE')
-  const [grade, setGrade] = useState<Grade>('SMA')
+  const [grade, setGrade] = useState<string>(grades[0] ?? 'SMA')
   
   const [player1Id, setPlayer1Id] = useState<string>('')
   const [player2Id, setPlayer2Id] = useState<string>('')
@@ -87,17 +87,17 @@ export default function RegistrationForm({ tournamentId, players }: Registration
 
           {/* Grade */}
           <div>
-            <label className="text-sm font-bold text-slate-700 block mb-2">Tingkat Sekolah (Grade)</label>
+            <label className="text-sm font-bold text-slate-700 block mb-2">Tingkat (Grade)</label>
             <select
               title="Grade"
               name="grade"
               value={grade}
-              onChange={(e) => setGrade(e.target.value as Grade)}
+              onChange={(e) => setGrade(e.target.value)}
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none font-medium text-slate-700"
             >
-              <option value="SD">SD</option>
-              <option value="SMP">SMP</option>
-              <option value="SMA">SMA</option>
+              {grades.map((g) => (
+                <option key={g} value={g}>{gradeToLabel(g)}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function RegistrationForm({ tournamentId, players }: Registration
                placeholder="Contoh: Smash Squad (Otomatis jika dikosongkan)"
                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none font-medium text-slate-700"
              />
-             <p className="text-xs text-slate-500 mt-2">Apabila kosong, sistem akan menghasilkan "[Nama P1] & [Nama P2]".</p>
+             <p className="text-xs text-slate-500 mt-2">Apabila kosong, sistem akan menghasilkan &ldquo;[Nama P1] &amp; [Nama P2]&rdquo;.</p>
            </div>
         )}
 

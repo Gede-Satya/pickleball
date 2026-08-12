@@ -44,6 +44,11 @@ export default function Footer() {
               </Link>
             </li>
             <li>
+              <Link href="/payment" className="hover:text-yellow-400 transition-colors flex items-center gap-2">
+                <span className="text-yellow-500">&bull;</span> Cek Pembayaran
+              </Link>
+            </li>
+            <li>
               <Link href="#" className="hover:text-yellow-400 transition-colors flex items-center gap-2">
                 <span className="text-yellow-500">&bull;</span> Tentang Kami
               </Link>

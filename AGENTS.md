@@ -199,12 +199,11 @@ DOUBLE
 MIXED
 ```
 
-Grades:
+Grades (Tingkat):
 
 ```text
-SD
-SMP
-SMA
+SD, SMP, SMA (Default)
+OPEN, U11, U13, U15, U17, U19, U21 (Configurable per tournament via gradeOptions)
 ```
 
 Gender:
@@ -222,6 +221,22 @@ FULL
 COMPLETED
 ```
 
+Payment Methods:
+
+```text
+TRANSFER
+QRIS
+EWALLET
+VENUE
+```
+
+Payment Statuses:
+
+```text
+UNPAID
+PAID
+```
+
 Preserve these domain concepts and enum values unless the user explicitly requests a domain change.
 
 ---
@@ -234,17 +249,19 @@ The application uses category keys such as:
 SMA_MALE_SINGLE
 SMP_FEMALE_DOUBLE
 SMA_MIXED
+OPEN_MALE_SINGLE
+U19_MIXED
 ```
 
 Category-related logic should be centralized where possible.
 
 Check existing utilities such as:
 
-```text
-lib/tournamentCategory.ts
-```
+* `lib/tournamentCategory.ts` (category generation & logic)
+* `lib/categoryLabel.ts` (human-readable label formatting)
+* `lib/tournamentGrades.ts` (grade normalization & parsing)
 
-before implementing new category-generation logic.
+before implementing new category-generation or label logic.
 
 Do not duplicate category rules across multiple API routes or components.
 
@@ -329,7 +346,7 @@ Never trust client-provided role information for security-sensitive authorizatio
 
 Authorization must be enforced server-side where appropriate.
 
-The `/wasit` area has separate functionality and should not automatically be assumed to use the same authorization mechanism as `/admin`.
+The `/wasit` area intentionally does NOT require authentication/login because match links are shared directly to each referee. Do not add authentication or login requirements to `/wasit` routes.
 
 Inspect existing authentication code before changing authorization behavior.
 
@@ -358,12 +375,9 @@ Before creating a new endpoint:
 
 1. Check whether an existing endpoint already provides the required functionality.
 2. Follow the existing response format.
-3. Reuse shared helpers such as:
-
-```text
-lib/apiResponse.ts
-```
-
+3. Reuse shared helpers from `lib/apiResponse.ts`:
+   * `successResponse(message, data, status, pagination)`
+   * `errorResponse(message, status, code, details)`
 4. Validate incoming data.
 5. Enforce authentication/authorization where required.
 6. Handle database errors safely.
@@ -381,11 +395,13 @@ app/api/upload/
 
 and image/file fields exist in the database.
 
-Inspect the existing upload implementation before adding another upload mechanism.
+Payment proof uploads are handled via `lib/paymentProof.ts` (`savePaymentProofFile`) and stored under `public/uploads/payments/`.
+
+Inspect existing upload implementations before adding another upload mechanism.
 
 Do not expose filesystem paths or sensitive server information to clients.
 
-Validate uploaded files appropriately.
+Validate uploaded files appropriately (file type, size limits).
 
 ---
 
@@ -419,7 +435,16 @@ The project contains:
 lib/swal.ts
 ```
 
-Check and reuse the existing SweetAlert helper before implementing new alert/notification behavior.
+Reuse the helper functions in `lib/swal.ts` for all user feedback and popups:
+
+* `showSuccess(message, title)`
+* `showError(message, title)`
+* `showWarning(message, title)`
+* `showInfo(message, title)`
+* `showConfirm(message, title, confirmText, cancelText)`
+* `showDeleteConfirm(message, title)`
+
+Never use native browser popups like `alert()` or `confirm()`.
 
 Avoid introducing multiple competing notification systems.
 
@@ -465,6 +490,8 @@ Development:
 ```bash
 npm run dev
 ```
+
+(runs `next dev --webpack`)
 
 Build:
 
@@ -590,3 +617,4 @@ When instructions conflict, use this priority:
 5. General coding preferences
 
 Do not override explicit user requirements unless doing so would create a security, data-loss, or serious correctness problem.
+

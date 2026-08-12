@@ -4,53 +4,238 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from 'next/cache'
 
-import { buildCategoryInfo, autoAssignToPool } from '@/lib/tournamentCategory'
+import type { PaymentMethod, Gender, MatchType } from "@prisma/client";
+
+import { buildCategoryInfo, autoAssignToPool, generatePoolMatches } from '@/lib/tournamentCategory'
+import { parseTournamentGrades } from '@/lib/tournamentGrades'
+import { savePaymentProofFile } from '@/lib/paymentProof'
+
+// Validasi & simpan bukti pembayaran ke public/uploads/payments/
+// Mengembalikan objek field pembayaran untuk create Player/Team.
+async function buildPaymentFields(
+  formData: FormData,
+  registrationFee: number
+): Promise<{
+  paymentMethod: PaymentMethod | null;
+  paymentStatus: 'UNPAID' | 'PAID' | null;
+  paymentProof: string | null;
+}> {
+  if (registrationFee <= 0) {
+    return { paymentMethod: null, paymentStatus: null, paymentProof: null };
+  }
+
+  const method = formData.get('paymentMethod') as string | null;
+  const allowed: PaymentMethod[] = ['TRANSFER', 'QRIS', 'EWALLET', 'VENUE'];
+  if (!method || !allowed.includes(method as PaymentMethod)) {
+    throw new Error("Pilih metode pembayaran yang valid");
+  }
+
+  // Bayar di tempat: tanpa bukti, dikonfirmasi panitia saat hari-H
+  if (method === 'VENUE') {
+    return { paymentMethod: method as PaymentMethod, paymentStatus: 'UNPAID', paymentProof: null };
+  }
+
+  const proof = await savePaymentProofFile(formData.get('paymentProof') as File | null);
+
+  return {
+    paymentMethod: method as PaymentMethod,
+    paymentStatus: 'UNPAID',
+    paymentProof: proof,
+  };
+}
 
 export async function registerPlayer(formData: FormData) {
   const tournamentId = parseInt(formData.get('tournamentId') as string)
   const fullName = formData.get('fullName') as string
   const schoolName = formData.get('schoolName') as string
   const phoneNumber = formData.get('phoneNumber') as string
-  const gender = (formData.get('gender') as any) || 'MALE'
-  const grade = (formData.get('grade') as any) || 'SMA'
-  const matchType = (formData.get('matchType') as any) || 'SINGLE'
+  const gender = (formData.get('gender') as Gender) || 'MALE'
+  const grade = (formData.get('grade') as string) || 'SMA'
+  const matchType = (formData.get('matchType') as MatchType) || 'SINGLE'
 
-  // Cek turnamen untuk ambil poolSize
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } })
-  if (!tournament) throw new Error("Turnamen tidak ditemukan")
+  // Satu transaksi: player/team + pool + generate match semua atomic.
+  // autoAssignToPool mengunci baris turnamen (FOR UPDATE), sehingga
+  // pendaftaran massal yang berbarengan tetap aman (tidak overfill,
+  // tidak ada pool duplikat, status FULL akurat).
+  await prisma.$transaction(async (tx) => {
+    // Cek turnamen untuk ambil poolSize
+    const tournament = await tx.tournament.findUnique({ where: { id: tournamentId } })
+    if (!tournament) throw new Error("Turnamen tidak ditemukan")
 
-  // Simpan data pendaftar ke tabel Player
-  const player = await prisma.player.create({
-    data: {
-      fullName,
-      schoolName,
-      phoneNumber,
-      tournamentId,
-      gender,
-      grade,
-      matchType,
+    // Validasi: tingkat harus termasuk yang dibuka admin untuk turnamen ini
+    const allowedGrades = parseTournamentGrades(tournament.gradeOptions)
+    if (!allowedGrades.includes(grade)) {
+      throw new Error("Tingkat tidak tersedia untuk turnamen ini")
+    }
+
+    // Pembayaran: simpan metode + bukti transfer (UNPAID sampai dikonfirmasi panitia)
+    const paymentFields = await buildPaymentFields(formData, tournament.registrationFee)
+
+    // DOUBLE: buat 1 tim berisi 2 pemain dengan gender SAMA
+    if (matchType === 'DOUBLE') {
+      const namaPemain1 = formData.get('namaPemain1') as string
+      const namaPemain2 = formData.get('namaPemain2') as string
+      if (!namaPemain1 || !namaPemain2) {
+        throw new Error("Nama kedua pemain wajib diisi")
+      }
+
+      const categoryInfo = buildCategoryInfo(grade, gender, 'DOUBLE')
+
+      const team = await tx.team.create({
+        data: {
+          name: `${namaPemain1} & ${namaPemain2}`,
+          matchType,
+          grade,
+          categoryKey: categoryInfo.key,
+          tournamentId,
+          paymentMethod: paymentFields.paymentMethod,
+          paymentStatus: paymentFields.paymentStatus,
+          paymentProof: paymentFields.paymentProof,
+        },
+      })
+
+      await tx.player.create({
+        data: {
+          fullName: namaPemain1,
+          gender,
+          schoolName,
+          phoneNumber,
+          grade,
+          matchType,
+          tournamentId,
+          teamId: team.id,
+        },
+      })
+
+      await tx.player.create({
+        data: {
+          fullName: namaPemain2,
+          gender,
+          schoolName,
+          phoneNumber,
+          grade,
+          matchType,
+          tournamentId,
+          teamId: team.id,
+        },
+      })
+
+      const resPool = await autoAssignToPool(
+        tx,
+        tournamentId,
+        categoryInfo,
+        team.name,
+        tournament.poolSize,
+        { teamId: team.id }
+      )
+
+      // Auto-generate pool matches jika pool mencapai FULL
+      if (resPool.pool.status === 'FULL') {
+        await generatePoolMatches(tx, resPool.pool.id)
+      }
+      return
+    }
+
+    // MIXED: buat 1 tim berisi 2 pemain (putra + putri) — konsisten
+    // dengan alur admin (Team + Player ber-gender MALE/FEMALE).
+    if (matchType === 'MIXED') {
+      const namaPutra = formData.get('namaPutra') as string
+      const namaPutri = formData.get('namaPutri') as string
+      if (!namaPutra || !namaPutri) {
+        throw new Error("Nama pemain putra dan putri wajib diisi")
+      }
+
+      const categoryInfo = buildCategoryInfo(grade, null, 'MIXED')
+
+      const team = await tx.team.create({
+        data: {
+          name: `${namaPutra} & ${namaPutri}`,
+          matchType,
+          grade,
+          categoryKey: categoryInfo.key,
+          tournamentId,
+          paymentMethod: paymentFields.paymentMethod,
+          paymentStatus: paymentFields.paymentStatus,
+          paymentProof: paymentFields.paymentProof,
+        },
+      })
+
+      await tx.player.create({
+        data: {
+          fullName: namaPutra,
+          gender: 'MALE',
+          schoolName,
+          phoneNumber,
+          grade,
+          matchType,
+          tournamentId,
+          teamId: team.id,
+        },
+      })
+
+      await tx.player.create({
+        data: {
+          fullName: namaPutri,
+          gender: 'FEMALE',
+          schoolName,
+          phoneNumber,
+          grade,
+          matchType,
+          tournamentId,
+          teamId: team.id,
+        },
+      })
+
+      const resPool = await autoAssignToPool(
+        tx,
+        tournamentId,
+        categoryInfo,
+        team.name,
+        tournament.poolSize,
+        { teamId: team.id }
+      )
+
+      // Auto-generate pool matches jika pool mencapai FULL
+      if (resPool.pool.status === 'FULL') {
+        await generatePoolMatches(tx, resPool.pool.id)
+      }
+      return
+    }
+
+    // Simpan data pendaftar ke tabel Player
+    const player = await tx.player.create({
+      data: {
+        fullName,
+        schoolName,
+        phoneNumber,
+        tournamentId,
+        gender,
+        grade,
+        matchType,
+        paymentMethod: paymentFields.paymentMethod,
+        paymentStatus: paymentFields.paymentStatus,
+        paymentProof: paymentFields.paymentProof,
+      }
+    })
+
+    // Jika pendaftar SINGLE, langsung masukkan ke Pool
+    if (matchType === 'SINGLE') {
+      const categoryInfo = buildCategoryInfo(grade, gender, matchType)
+      const resPool = await autoAssignToPool(
+        tx,
+        tournamentId,
+        categoryInfo,
+        fullName,
+        tournament.poolSize,
+        { playerId: player.id }
+      )
+
+      // Auto-generate pool matches jika pool mencapai FULL
+      if (resPool.pool.status === 'FULL') {
+        await generatePoolMatches(tx, resPool.pool.id)
+      }
     }
   })
-
-  // Jika pendaftar SINGLE, langsung masukkan ke Pool
-  if (matchType === 'SINGLE') {
-    const categoryInfo = buildCategoryInfo(grade, gender, matchType)
-    const resPool = await autoAssignToPool(
-      prisma,
-      tournamentId,
-      categoryInfo,
-      fullName,
-      tournament.poolSize,
-      { playerId: player.id }
-    )
-
-    // Auto-generate pool matches if it reached FULL status
-    const updatedPool = await prisma.pool.findUnique({ where: { id: resPool.pool.id } })
-    if (updatedPool && updatedPool.status === 'FULL') {
-       const { generatePoolMatches } = await import('@/lib/tournamentCategory');
-       await generatePoolMatches(prisma, resPool.pool.id);
-    }
-  }
 
   // Refresh halaman agar data terbaru termuat
   revalidatePath(`/tournament/${tournamentId}`)

@@ -17,6 +17,8 @@ interface Player {
   grade: string;
   matchType: string;
   seedOrder: number | null;
+  isTeam: boolean;
+  memberNames: string[];
 }
 
 interface GroupMember {
@@ -144,7 +146,12 @@ export default function BracketClient({
       p.matchType === "MIXED"
         ? `${p.grade}_MIXED`
         : `${p.grade}_${p.gender}_${p.matchType}`;
-    return playerCatKey === activeCategory && !assignedNames.has(p.fullName);
+    if (playerCatKey !== activeCategory) return false;
+    if (assignedNames.has(p.fullName)) return false;
+    // Tim dianggap sudah masuk jika salah satu anggotanya sudah ada di grup
+    if (p.isTeam && p.memberNames.some((n) => assignedNames.has(n)))
+      return false;
+    return true;
   });
 
   // ============================================================
@@ -906,6 +913,9 @@ function GroupCard({
                   {availablePlayers.map((p) => (
                     <option key={p.id} value={p.fullName}>
                       {p.fullName}
+                      {p.isTeam && p.memberNames.length > 0
+                        ? ` (${p.memberNames.join(" • ")})`
+                        : ""}
                     </option>
                   ))}
                 </select>

@@ -1,6 +1,8 @@
 import React from "react";
 import Link from "next/link";
 import { createTournament } from "./actions"; // Import fungsi yang kita buat tadi
+import GradePicker from "@/components/GradePicker";
+import { DEFAULT_TOURNAMENT_GRADES } from "@/lib/tournamentGrades";
 
 export default function CreateTournamentPage() {
   return (
@@ -69,6 +71,9 @@ export default function CreateTournamentPage() {
               </select>
             </div>
           </div>
+
+          {/* Tingkat / Grade yang tersedia */}
+          <GradePicker defaultGrades={DEFAULT_TOURNAMENT_GRADES as unknown as string[]} />
 
           {/* Deskripsi */}
           <div className="space-y-2">

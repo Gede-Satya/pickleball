@@ -1,18 +1,18 @@
 'use server'
 
-import { PrismaClient, Grade, MatchType, Gender } from '@prisma/client'
+import { PrismaClient, MatchType, Gender } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { buildCategoryInfo, validateGenderForMatchType, autoAssignToPool } from '@/lib/tournamentCategory'
+import { buildCategoryInfo, validateGenderForMatchType, autoAssignToPool, generatePoolMatches } from '@/lib/tournamentCategory'
 
 const prisma = new PrismaClient()
 
-export async function processTeamRegistration(prevState: any, formData: FormData) {
+export async function processTeamRegistration(prevState: unknown, formData: FormData) {
   let tournamentId: number = 0;
   try {
     tournamentId = parseInt(formData.get('tournamentId') as string)
     const matchType = formData.get('matchType') as MatchType
-    const grade = formData.get('grade') as Grade
+    const grade = formData.get('grade') as string
     
     // Parse players
     const player1IdStr = formData.get('player1Id') as string
@@ -65,9 +65,11 @@ export async function processTeamRegistration(prevState: any, formData: FormData
     if (!tournament) return { error: 'Turnamen tidak ditemukan' }
 
     let teamIdToUse: number | undefined = undefined
-    let memberNameToUse = teamName
+    const memberNameToUse = teamName
 
-    // Transaksi pembuatan tim (jika Double/Mixed) dan update data player
+    // Satu transaksi: buat/update tim + assign ke pool + generate match.
+    // autoAssignToPool mengunci baris turnamen (FOR UPDATE) sehingga aman
+    // saat banyak pendaftaran berbarengan.
     await prisma.$transaction(async (tx) => {
       if (matchType !== 'SINGLE') {
         const team = await tx.team.create({
@@ -98,32 +100,29 @@ export async function processTeamRegistration(prevState: any, formData: FormData
           data: { grade, matchType }
         })
       }
-    })
 
-    // Assign to Pool (harus di luar transaction jika autoAssignToPool buat tx sendiri)
-    const assignOptions = matchType === 'SINGLE' ? { playerId: p1.id } : { teamId: teamIdToUse! }
-    const resPool = await autoAssignToPool(
-      prisma,
-      tournamentId,
-      categoryInfo,
-      memberNameToUse,
-      tournament.poolSize,
-      assignOptions
-    )
-    
-    // Auto-generate pool matches if it reached FULL status
-    const updatedPool = await prisma.pool.findUnique({ where: { id: resPool.pool.id } })
-    if (updatedPool && updatedPool.status === 'FULL') {
-       // Import generatePoolMatches on top or here
-       const { generatePoolMatches } = await import('@/lib/tournamentCategory');
-       await generatePoolMatches(prisma, resPool.pool.id);
-    }
-  } catch (error: any) {
-    if (error.message === 'NEXT_REDIRECT') {
+      // Assign to Pool di dalam transaksi yang sama
+      const assignOptions = matchType === 'SINGLE' ? { playerId: p1.id } : { teamId: teamIdToUse! }
+      const resPool = await autoAssignToPool(
+        tx,
+        tournamentId,
+        categoryInfo,
+        memberNameToUse,
+        tournament.poolSize,
+        assignOptions
+      )
+
+      // Auto-generate pool matches jika pool mencapai FULL
+      if (resPool.pool.status === 'FULL') {
+        await generatePoolMatches(tx, resPool.pool.id)
+      }
+    })
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
       throw error // Let Next.js handle redirect throw
     }
     console.error('Registration Error:', error)
-    return { error: error.message || 'Terjadi kesalahan sistem.' }
+    return { error: error instanceof Error ? error.message : 'Terjadi kesalahan sistem.' }
   }
 
   revalidatePath(`/admin/tournaments/${tournamentId}`)

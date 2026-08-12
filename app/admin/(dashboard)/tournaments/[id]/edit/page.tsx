@@ -4,7 +4,8 @@ import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { updateTournament } from "./actions";
 import { showError } from "@/lib/swal";
-
+import GradePicker from "@/components/GradePicker";
+import { parseTournamentGrades } from "@/lib/tournamentGrades";
 export default function EditTournamentPage({
   params,
 }: {
@@ -26,9 +27,10 @@ export default function EditTournamentPage({
         if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
         
         const data = await res.json();
-        if (data) {
-          setTournament(data);
-          setImageUrl(data.image || "");
+        const tournamentData = data?.data ?? data;
+        if (tournamentData) {
+          setTournament(tournamentData);
+          setImageUrl(tournamentData.image || "");
         }
       } catch (error) {
         console.error("Gagal mengambil data turnamen:", error);
@@ -80,6 +82,9 @@ export default function EditTournamentPage({
       </div>
     );
   }
+
+  // Tingkat yang aktif untuk turnamen ini
+  const activeGrades = parseTournamentGrades(tournament.gradeOptions);
 
  const formatDateLocal = (date: string | Date | null | undefined): string => {
   if (!date) return "";
@@ -232,6 +237,9 @@ const formattedEndDate = tournament?.endDate
                 <option value="CANCELED">Canceled (Dibatalkan)</option>
               </select>
             </div>
+
+            {/* Tingkat / Grade yang tersedia */}
+            <GradePicker defaultGrades={activeGrades} />
 
             {/* Upload Gambar */}
             <div className="space-y-3 md:col-span-2 pt-2 border-t border-slate-100">

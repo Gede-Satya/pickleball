@@ -5,7 +5,7 @@
  * ============================================================
  */
 
-import { PrismaClient, Gender, Grade, MatchType } from "@prisma/client";
+import { PrismaClient, Gender, MatchType } from "@prisma/client";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import {
   buildCategoryInfo,
@@ -26,7 +26,7 @@ export async function GET(
   const url = new URL(req.url);
 
   const gender = url.searchParams.get("gender") as Gender | null;
-  const grade = url.searchParams.get("grade") as Grade | null;
+  const grade = url.searchParams.get("grade") ?? null;
   const matchType = url.searchParams.get("matchType") as MatchType | null;
 
   try {
@@ -79,14 +79,10 @@ export async function POST(
 
     // --- Validasi enum values ---
     const validGenders: Gender[] = ["MALE", "FEMALE"];
-    const validGrades: Grade[] = ["SD", "SMP", "SMA"];
     const validMatchTypes: MatchType[] = ["SINGLE", "DOUBLE", "MIXED"];
 
     if (!validGenders.includes(gender)) {
       return errorResponse(`Gender tidak valid. Pilih: ${validGenders.join(", ")} ⚠️`, 400, "BAD_REQUEST");
-    }
-    if (!validGrades.includes(grade)) {
-      return errorResponse(`Grade tidak valid. Pilih: ${validGrades.join(", ")} ⚠️`, 400, "BAD_REQUEST");
     }
     if (!validMatchTypes.includes(matchType)) {
       return errorResponse(`MatchType tidak valid. Pilih: ${validMatchTypes.join(", ")} ⚠️`, 400, "BAD_REQUEST");
@@ -115,44 +111,49 @@ export async function POST(
       return errorResponse("Turnamen tidak ditemukan 🔍", 404, "NOT_FOUND");
     }
 
-    // --- Buat player ---
-    const player = await prisma.player.create({
-      data: {
-        fullName,
-        schoolName,
-        phoneNumber,
-        gender,
-        grade,
-        matchType,
-        tournamentId,
-      },
-    });
-
-    // --- Auto-assign ke pool ---
+    // --- Buat player + auto-assign ke pool dalam SATU transaksi ---
+    // autoAssignToPool mengunci baris turnamen (FOR UPDATE), jadi aman
+    // dipanggil bersamaan oleh banyak pendaftar.
     const categoryInfo = buildCategoryInfo(grade, gender, matchType);
 
-    const { pool, member, isNewPool } = await autoAssignToPool(
-      prisma,
-      tournamentId,
-      categoryInfo,
-      fullName,
-      tournament.poolSize,
-      { playerId: player.id }
-    );
+    const result = await prisma.$transaction(async (tx) => {
+      const player = await tx.player.create({
+        data: {
+          fullName,
+          schoolName,
+          phoneNumber,
+          gender,
+          grade,
+          matchType,
+          tournamentId,
+        },
+      });
+
+      const { pool, member, isNewPool } = await autoAssignToPool(
+        tx,
+        tournamentId,
+        categoryInfo,
+        fullName,
+        tournament.poolSize,
+        { playerId: player.id }
+      );
+
+      return { player, pool, member, isNewPool };
+    });
 
     return successResponse(
-      `Player berhasil didaftarkan ke ${isNewPool ? "pool baru" : "pool yang sudah ada"} 🎉`,
+      `Player berhasil didaftarkan ke ${result.isNewPool ? "pool baru" : "pool yang sudah ada"} 🎉`,
       {
-        player,
+        player: result.player,
         pool: {
-          id: pool.id,
-          label: pool.label,
-          poolCode: pool.poolCode,
-          categoryKey: pool.categoryKey,
-          status: pool.status,
-          isNewPool,
+          id: result.pool.id,
+          label: result.pool.label,
+          poolCode: result.pool.poolCode,
+          categoryKey: result.pool.categoryKey,
+          status: result.pool.status,
+          isNewPool: result.isNewPool,
         },
-        poolMember: member,
+        poolMember: result.member,
         categoryKey: categoryInfo.key,
         categoryLabel: categoryInfo.label,
       },

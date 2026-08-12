@@ -6,7 +6,7 @@
  * ============================================================
  */
 
-import { PrismaClient, Gender, Grade, MatchType } from "@prisma/client";
+import { PrismaClient, Gender, MatchType } from "@prisma/client";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import {
   buildCategoryInfo,
@@ -26,7 +26,7 @@ export async function GET(
   const { id } = await params;
   const url = new URL(req.url);
   const matchType = url.searchParams.get("matchType") as MatchType | null;
-  const grade = url.searchParams.get("grade") as Grade | null;
+  const grade = url.searchParams.get("grade") ?? null;
 
   try {
     const teams = await prisma.team.findMany({
@@ -90,12 +90,8 @@ export async function POST(
     }
 
     // --- Validasi enum ---
-    const validGrades: Grade[] = ["SD", "SMP", "SMA"];
     const validMatchTypes: MatchType[] = ["DOUBLE", "MIXED"];
 
-    if (!validGrades.includes(grade)) {
-      return errorResponse(`Grade tidak valid. Pilih: ${validGrades.join(", ")} ⚠️`, 400, "BAD_REQUEST");
-    }
     if (!validMatchTypes.includes(matchType)) {
       return errorResponse(
         "MatchType untuk tim harus DOUBLE atau MIXED ⚠️",
@@ -119,7 +115,7 @@ export async function POST(
       }
     }
 
-    const genders: Gender[] = players.map((p: any) => p.gender);
+    const genders: Gender[] = players.map((p) => p.gender);
 
     // --- Validasi aturan gender ---
     const genderValidation = validateGenderForMatchType(matchType, genders);
@@ -142,7 +138,9 @@ export async function POST(
     // --- Build category info ---
     const categoryInfo = buildCategoryInfo(grade, dominantGender, matchType);
 
-    // --- Buat team (dalam transaksi) ---
+    // --- Buat team + auto-assign ke pool (dalam satu transaksi) ---
+    // autoAssignToPool mengunci baris turnamen (FOR UPDATE) sehingga aman
+    // saat banyak tim mendaftar bersamaan.
     const result = await prisma.$transaction(async (tx) => {
       // 1. Buat Team
       const team = await tx.team.create({
@@ -173,33 +171,33 @@ export async function POST(
         createdPlayers.push(player);
       }
 
-      return { team, players: createdPlayers };
+      // 3. Auto-assign team ke pool
+      const { pool, member, isNewPool } = await autoAssignToPool(
+        tx,
+        tournamentId,
+        categoryInfo,
+        teamName,
+        tournament.poolSize,
+        { teamId: team.id }
+      );
+
+      return { team, players: createdPlayers, pool, member, isNewPool };
     });
 
-    // --- Auto-assign team ke pool ---
-    const { pool, member, isNewPool } = await autoAssignToPool(
-      prisma,
-      tournamentId,
-      categoryInfo,
-      teamName,
-      tournament.poolSize,
-      { teamId: result.team.id }
-    );
-
     return successResponse(
-      `Tim berhasil didaftarkan ke ${isNewPool ? "pool baru" : "pool yang sudah ada"} 🎉`,
+      `Tim berhasil didaftarkan ke ${result.isNewPool ? "pool baru" : "pool yang sudah ada"} 🎉`,
       {
         team: result.team,
         players: result.players,
         pool: {
-          id: pool.id,
-          label: pool.label,
-          poolCode: pool.poolCode,
-          categoryKey: pool.categoryKey,
-          status: pool.status,
-          isNewPool,
+          id: result.pool.id,
+          label: result.pool.label,
+          poolCode: result.pool.poolCode,
+          categoryKey: result.pool.categoryKey,
+          status: result.pool.status,
+          isNewPool: result.isNewPool,
         },
-        poolMember: member,
+        poolMember: result.member,
         categoryKey: categoryInfo.key,
         categoryLabel: categoryInfo.label,
       },
