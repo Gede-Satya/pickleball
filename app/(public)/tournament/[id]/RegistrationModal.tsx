@@ -116,7 +116,7 @@ export default function RegistrationModal({ tournament }: { tournament: Registra
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold px-8 py-4 rounded-xl shadow-lg shadow-yellow-400/30 transition-all hover:scale-105"
+        className="bg-yellow-400 hover:bg-yellow-500 text-[#0F172A] font-bold px-8 py-4 rounded-xl shadow-lg shadow-yellow-400/30 transition-all hover:scale-105"
       >
         Daftar Sekarang
       </button>
@@ -319,7 +319,7 @@ export default function RegistrationModal({ tournament }: { tournament: Registra
                         required
                         accept="image/jpeg,image/png,image/webp"
                         onChange={handleProofChange}
-                        className="w-full text-sm p-2.5 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-yellow-400 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-yellow-400 file:text-slate-900 file:font-semibold file:text-sm file:cursor-pointer"
+                        className="w-full text-sm p-2.5 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-yellow-400 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-yellow-400 file:text-[#0F172A] file:font-semibold file:text-sm file:cursor-pointer"
                       />
                       {proofPreview && (
                         <img
@@ -343,7 +343,7 @@ export default function RegistrationModal({ tournament }: { tournament: Registra
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-bold py-3 rounded-xl transition-colors mt-4"
+                className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500 text-white font-bold py-3 rounded-xl transition-colors mt-4"
               >
                 {isSubmitting ? "Memproses..." : "Kirim Pendaftaran"}
               </button>

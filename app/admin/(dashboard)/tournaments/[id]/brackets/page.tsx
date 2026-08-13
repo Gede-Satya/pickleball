@@ -29,6 +29,54 @@ export default async function BracketPage({
 
   if (!tournament) return notFound();
 
+  // Kategori yang sudah memakai sistem Pool (group legacy disembunyikan)
+  const [poolCategories, pools] = await Promise.all([
+    prisma.pool.findMany({
+      where: { tournamentId },
+      select: { categoryKey: true },
+      distinct: ["categoryKey"],
+    }),
+    prisma.pool.findMany({
+      where: { tournamentId },
+      include: {
+        members: { orderBy: { id: "asc" } },
+        matches: {
+          include: { member1: true, member2: true },
+          orderBy: { matchOrder: "asc" },
+        },
+      },
+      orderBy: [{ categoryKey: "asc" }, { poolCode: "asc" }],
+    }),
+  ]);
+
+  const initialPools = pools.map((pool) => ({
+    id: pool.id,
+    label: pool.label,
+    poolCode: pool.poolCode,
+    categoryKey: pool.categoryKey,
+    status: pool.status,
+    members: pool.members.map((m) => ({
+      id: m.id,
+      memberName: m.memberName,
+      rank: m.rank,
+      played: m.played,
+      wins: m.wins,
+      losses: m.losses,
+      pointsFor: m.pointsFor,
+      pointsAgainst: m.pointsAgainst,
+      pointDiff: m.pointDiff,
+    })),
+    matches: pool.matches.map((m) => ({
+      id: m.id,
+      member1Id: m.member1.id,
+      member2Id: m.member2.id,
+      score1: m.score1,
+      score2: m.score2,
+      winnerId: m.winnerId,
+      status: m.status,
+    })),
+  }));
+
   // Kelompokkan pemain ber-tim (MIXED/DOUBLE) jadi SATU entri per tim,
   // supaya di bagan tim tampil sebagai satu kesatuan (nama tim).
   const initialPlayers = [];
@@ -78,6 +126,8 @@ export default async function BracketPage({
       initialPlayers={initialPlayers}
       initialKnockout={tournament.knockoutMatches}
       categories={categories}
+      poolCategories={poolCategories.map((p) => p.categoryKey)}
+      initialPools={initialPools}
     />
   );
 }

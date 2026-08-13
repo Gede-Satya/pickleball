@@ -5,7 +5,7 @@
  * ============================================================
  */
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 
 const prisma = new PrismaClient();
@@ -32,6 +32,10 @@ export async function GET(
         members: {
           orderBy: [{ rank: "asc" }, { wins: "desc" }],
         },
+        matches: {
+          include: { member1: true, member2: true },
+          orderBy: { matchOrder: "asc" },
+        },
         _count: {
           select: { members: true, matches: true },
         },
@@ -40,7 +44,7 @@ export async function GET(
     });
 
     // Group by categoryKey untuk tampilan terstruktur
-    const grouped: Record<string, any[]> = {};
+    const grouped: Record<string, Prisma.PoolGetPayload<{ include: { members: true; matches: { include: { member1: true; member2: true } }; _count: { select: { members: true; matches: true } } } }>[]> = {};
     for (const pool of pools) {
       if (!grouped[pool.categoryKey]) {
         grouped[pool.categoryKey] = [];

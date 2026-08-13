@@ -103,7 +103,7 @@ export default function EditPostForm({ post }: { post: any }) {
             <button
               type="submit"
               disabled={isUploading}
-              className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white px-8 py-3 rounded-lg font-medium"
+              className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500 text-white px-8 py-3 rounded-lg font-medium"
             >
               {isUploading ? "Tunggu..." : "Simpan Perubahan"}
             </button>

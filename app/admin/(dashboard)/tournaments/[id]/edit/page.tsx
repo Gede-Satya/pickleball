@@ -110,11 +110,17 @@ const formattedEndDate = tournament?.endDate
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
       
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Link href="/admin/tournaments" className="text-slate-500 hover:text-slate-900 transition-colors">
           ← Kembali
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">Edit Turnamen</h1>
+        <Link
+          href={`/admin/tournaments/${id}/pools`}
+          className="ml-auto inline-block px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-semibold text-sm transition-colors"
+        >
+          🏊 Kelola Pool & Penempatan
+        </Link>
       </div>
 
       {/* Card Form */}
@@ -309,7 +315,7 @@ const formattedEndDate = tournament?.endDate
             <button 
               type="submit" 
               disabled={isUploading}
-              className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white px-8 py-3 rounded-lg font-medium transition-colors shadow-sm focus:ring-4 focus:ring-slate-200 outline-none"
+              className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500 text-white px-8 py-3 rounded-lg font-medium transition-colors shadow-sm focus:ring-4 focus:ring-slate-200 outline-none"
             >
               {isUploading ? "Tunggu Sebentar..." : "Simpan Perubahan"}
             </button>

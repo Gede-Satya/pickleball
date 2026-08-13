@@ -118,7 +118,7 @@ export default function PaymentCheckPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-slate-300 text-slate-900 font-bold px-6 py-3 rounded-xl transition-all active:scale-95"
+            className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-slate-300 text-[#0F172A] font-bold px-6 py-3 rounded-xl transition-all active:scale-95"
           >
             {isLoading ? "Mencari..." : "Cari 🔍"}
           </button>
@@ -207,7 +207,7 @@ export default function PaymentCheckPage() {
                             }
                             e.target.value = "";
                           }}
-                          className="flex-1 text-sm p-2.5 border border-slate-300 rounded-lg bg-white file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-yellow-400 file:text-slate-900 file:font-semibold file:text-sm file:cursor-pointer"
+                          className="flex-1 text-sm p-2.5 border border-slate-300 rounded-lg bg-white file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-yellow-400 file:text-[#0F172A] file:font-semibold file:text-sm file:cursor-pointer"
                         />
                         <span className="text-xs text-slate-400">
                           JPG/PNG/WebP, maks 5MB

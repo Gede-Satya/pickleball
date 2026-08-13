@@ -320,6 +320,13 @@ export default function TournamentTable({
                           🌳 Bagan
                         </Link>
                         <Link
+                          href={`/admin/tournaments/${tournament.id}/pools`}
+                          className="inline-block px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md font-medium transition-colors"
+                          title="Kelola Pool & Penempatan Peserta"
+                        >
+                          🏊 Pool
+                        </Link>
+                        <Link
                           href={`/admin/tournaments/${tournament.id}/edit`}
                           className="inline-block px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-md font-medium transition-colors"
                         >

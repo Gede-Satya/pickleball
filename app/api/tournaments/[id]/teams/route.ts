@@ -2,7 +2,7 @@
  * /api/tournaments/[id]/teams/route.ts
  * ============================================================
  * Buat tim untuk pertandingan DOUBLE atau MIXED
- * + Validasi gender + Auto-assign ke pool yang sesuai
+ * + Validasi gender (penempatan pool oleh panitia)
  * ============================================================
  */
 
@@ -11,7 +11,6 @@ import { successResponse, errorResponse } from "@/lib/apiResponse";
 import {
   buildCategoryInfo,
   validateGenderForMatchType,
-  autoAssignToPool,
 } from "@/lib/tournamentCategory";
 
 const prisma = new PrismaClient();
@@ -138,9 +137,9 @@ export async function POST(
     // --- Build category info ---
     const categoryInfo = buildCategoryInfo(grade, dominantGender, matchType);
 
-    // --- Buat team + auto-assign ke pool (dalam satu transaksi) ---
-    // autoAssignToPool mengunci baris turnamen (FOR UPDATE) sehingga aman
-    // saat banyak tim mendaftar bersamaan.
+    // --- Buat team + players dalam satu transaksi (tanpa assign pool) ---
+    // Pool dibuat & diisi oleh panitia melalui halaman kelola pool
+    // setelah TM/pengundian.
     const result = await prisma.$transaction(async (tx) => {
       // 1. Buat Team
       const team = await tx.team.create({
@@ -171,33 +170,14 @@ export async function POST(
         createdPlayers.push(player);
       }
 
-      // 3. Auto-assign team ke pool
-      const { pool, member, isNewPool } = await autoAssignToPool(
-        tx,
-        tournamentId,
-        categoryInfo,
-        teamName,
-        tournament.poolSize,
-        { teamId: team.id }
-      );
-
-      return { team, players: createdPlayers, pool, member, isNewPool };
+      return { team, players: createdPlayers };
     });
 
     return successResponse(
-      `Tim berhasil didaftarkan ke ${result.isNewPool ? "pool baru" : "pool yang sudah ada"} 🎉`,
+      "Tim berhasil didaftarkan 🎉 (penempatan pool menunggu pengundian panitia)",
       {
         team: result.team,
         players: result.players,
-        pool: {
-          id: result.pool.id,
-          label: result.pool.label,
-          poolCode: result.pool.poolCode,
-          categoryKey: result.pool.categoryKey,
-          status: result.pool.status,
-          isNewPool: result.isNewPool,
-        },
-        poolMember: result.member,
         categoryKey: categoryInfo.key,
         categoryLabel: categoryInfo.label,
       },

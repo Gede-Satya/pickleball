@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // NAVBAR DAN FOOTER SUDAH DIHAPUS DARI SINI
 
@@ -26,12 +27,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        {/* Terapkan tema sebelum paint agar tidak flash (FOUC) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-slate-900`}
       >
         {/* Sekarang Root Layout murni hanya merender children */}
         <main>{children}</main>
+        {/* Toggle mode gelap — floating, tersedia di semua halaman */}
+        <ThemeToggle />
       </body>
     </html>
   );

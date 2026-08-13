@@ -297,12 +297,12 @@ export default function PlayerTableClient({ tournamentGroups }: { tournamentGrou
             className="bg-white rounded-3xl border border-slate-200/80 shadow-md shadow-slate-200/30 overflow-hidden transition-all"
           >
             {/* Tournament Header */}
-            <div className="w-full px-6 py-5 flex flex-col md:flex-row md:items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white gap-4">
+            <div className="w-full px-6 py-5 flex flex-col md:flex-row md:items-center justify-between bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#0F172A] text-white gap-4">
               <div
                 onClick={() => toggleCollapse(group.tournamentId)}
                 className="flex items-center gap-4 cursor-pointer flex-1"
               >
-                <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white text-xl shadow-inner border border-white/10 group-hover:scale-105 transition-transform">
+                <div className="w-12 h-12 bg-[rgba(255,255,255,0.1)] backdrop-blur-md rounded-2xl flex items-center justify-center text-white text-xl shadow-inner border border-[rgba(255,255,255,0.1)] group-hover:scale-105 transition-transform">
                   🎾
                 </div>
                 <div>
@@ -313,7 +313,7 @@ export default function PlayerTableClient({ tournamentGroups }: { tournamentGrou
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${statusMeta.bg} ${statusMeta.text}`}>
                       {statusMeta.label}
                     </span>
-                    <span className="text-xs text-slate-300 font-semibold bg-white/10 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs text-slate-300 font-semibold bg-[rgba(255,255,255,0.1)] px-2.5 py-0.5 rounded-full">
                       👥 {group.rows.length} Peserta
                     </span>
                     {paidCount > 0 && (
@@ -345,7 +345,7 @@ export default function PlayerTableClient({ tournamentGroups }: { tournamentGrou
                 <button
                   type="button"
                   onClick={() => toggleCollapse(group.tournamentId)}
-                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                  className="w-8 h-8 rounded-full bg-[rgba(255,255,255,0.1)] flex items-center justify-center hover:bg-[rgba(255,255,255,0.2)] transition-colors"
                 >
                   <svg className={`w-4 h-4 text-white transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />

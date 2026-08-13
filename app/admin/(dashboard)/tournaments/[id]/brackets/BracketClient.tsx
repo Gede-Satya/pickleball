@@ -5,7 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import KnockoutBracketRender from "./KnockoutBracketRender";
 import { showError, showSuccess, showWarning, showConfirm, showDeleteConfirm } from "@/lib/swal";
-import { categoryKeyToLabel } from "@/lib/categoryLabel";
+import { categoryKeyToLabel, buildPlayerCategoryKey } from "@/lib/categoryLabel";
+import PlayerCombobox from "@/components/PlayerCombobox";
+import EmptyState from "@/components/EmptyState";
+import LoadingOverlay from "@/components/LoadingOverlay";
+import SearchInput from "@/components/SearchInput";
+import { PoolMatrixTable } from "../pools/PoolBracketMatrix";
 
 // ============================================================
 // TYPES
@@ -75,6 +80,38 @@ interface Tournament {
   name: string;
 }
 
+export interface PoolStandingMember {
+  id: number;
+  memberName: string;
+  rank: number | null;
+  played: number;
+  wins: number;
+  losses: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  pointDiff: number;
+}
+
+export interface PoolMatch {
+  id: number;
+  member1Id: number;
+  member2Id: number;
+  score1: number | null;
+  score2: number | null;
+  winnerId: number | null;
+  status: string;
+}
+
+export interface PoolStanding {
+  id: number;
+  label: string;
+  poolCode: string;
+  categoryKey: string;
+  status: string;
+  members: PoolStandingMember[];
+  matches: PoolMatch[];
+}
+
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
@@ -84,22 +121,28 @@ export default function BracketClient({
   initialPlayers,
   initialKnockout,
   categories,
+  poolCategories,
+  initialPools,
 }: {
   tournament: Tournament;
   initialGroups: TournamentGroup[];
   initialPlayers: Player[];
   initialKnockout: KnockoutMatch[];
   categories: string[];
+  poolCategories: string[];
+  initialPools: PoolStanding[];
 }) {
   const router = useRouter();
   const [groups, setGroups] = useState<TournamentGroup[]>(initialGroups);
   const [players] = useState<Player[]>(initialPlayers);
   const [knockoutData, setKnockoutData] = useState<KnockoutMatch[]>(initialKnockout || []);
+  const [poolStandings, setPoolStandings] =
+    useState<PoolStanding[]>(initialPools);
   const [activeCategory, setActiveCategory] = useState<string>(
     categories[0] || ""
   );
   const [loading, setLoading] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
+  const [groupSearch, setGroupSearch] = useState("");
 
   // Modal state untuk input skor
   const [scoreModal, setScoreModal] = useState<{
@@ -124,14 +167,19 @@ export default function BracketClient({
   // Filter groups & knockouts berdasarkan kategori aktif
   const filteredGroups = groups.filter((g) => g.category === activeCategory);
 
+  // Kategori yang sudah memakai sistem Pool → grup legacy disembunyikan
+  const hasPool = poolCategories.includes(activeCategory);
+
+  // Klasemen pool kategori aktif (fetch ulang lewat refreshData)
+  const activePoolStandings = poolStandings.filter(
+    (p) => p.categoryKey === activeCategory
+  );
+
   // Jumlah pemain per kategori untuk ditampilkan di tab
   const playerCountByCategory = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const p of players) {
-      const key =
-        p.matchType === "MIXED"
-          ? `${p.grade}_MIXED`
-          : `${p.grade}_${p.gender}_${p.matchType}`;
+      const key = buildPlayerCategoryKey(p.grade, p.gender as "MALE" | "FEMALE" | null, p.matchType as "SINGLE" | "DOUBLE" | "MIXED");
       counts[key] = (counts[key] || 0) + 1;
     }
     return counts;
@@ -142,10 +190,7 @@ export default function BracketClient({
     filteredGroups.flatMap((g) => g.members.map((m) => m.playerName))
   );
   const availablePlayers = players.filter((p) => {
-    const playerCatKey =
-      p.matchType === "MIXED"
-        ? `${p.grade}_MIXED`
-        : `${p.grade}_${p.gender}_${p.matchType}`;
+    const playerCatKey = buildPlayerCategoryKey(p.grade, p.gender as "MALE" | "FEMALE" | null, p.matchType as "SINGLE" | "DOUBLE" | "MIXED");
     if (playerCatKey !== activeCategory) return false;
     if (assignedNames.has(p.fullName)) return false;
     // Tim dianggap sudah masuk jika salah satu anggotanya sudah ada di grup
@@ -153,6 +198,15 @@ export default function BracketClient({
       return false;
     return true;
   });
+
+  // Filter grup berdasarkan pencarian (nama grup / nama pemain)
+  const gq = groupSearch.trim().toLowerCase();
+  const searchFilteredGroups = filteredGroups.filter(
+    (g) =>
+      !gq ||
+      g.name.toLowerCase().includes(gq) ||
+      g.members.some((m) => m.playerName.toLowerCase().includes(gq))
+  );
 
   // ============================================================
   // FIX: refreshData dengan cache: "no-store" + router.refresh()
@@ -166,6 +220,49 @@ export default function BracketClient({
     });
     const dataG = await resG.json();
     if (dataG.data?.groups) setGroups(dataG.data.groups); // ← tambah .data
+
+    const resP = await fetch(`/api/tournaments/${tournament.id}/pools`, {
+      cache: "no-store",
+    });
+    const dataP = await resP.json();
+    const allPools: Array<{
+      id: number;
+      label: string;
+      poolCode: string;
+      categoryKey: string;
+      status: string;
+      members: Array<{
+        id: number;
+        memberName: string;
+        rank: number | null;
+        played: number;
+        wins: number;
+        losses: number;
+        pointsFor: number;
+        pointsAgainst: number;
+        pointDiff: number;
+      }>;
+      matches: Array<{
+        id: number;
+        member1Id: number;
+        member2Id: number;
+        score1: number | null;
+        score2: number | null;
+        winnerId: number | null;
+        status: string;
+      }>;
+    }> = dataP.data?.pools || [];
+    setPoolStandings(
+      allPools.map((p) => ({
+        id: p.id,
+        label: p.label,
+        poolCode: p.poolCode,
+        categoryKey: p.categoryKey,
+        status: p.status,
+        members: p.members,
+        matches: p.matches,
+      }))
+    );
 
     const resK = await fetch(
       `/api/tournaments/${tournament.id}/brackets/knockout?category=${activeCategory}`,
@@ -192,28 +289,6 @@ export default function BracketClient({
   // activeCategory sudah cukup sebagai trigger.
 
   // ======================== GRUP ========================
-
-  const handleCreateGroup = async () => {
-    if (!newGroupName.trim() || !activeCategory) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/tournaments/${tournament.id}/brackets`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newGroupName.trim(),
-          category: activeCategory,
-        }),
-      });
-      if (res.ok) {
-        setNewGroupName("");
-        await refreshData();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
-  };
 
   const handleDeleteGroup = async (groupId: number) => {
     const confirmed = await showDeleteConfirm(
@@ -382,31 +457,12 @@ export default function BracketClient({
   };
 
   // ======================== KNOCKOUT ========================
+  // Generate knockout HANYA dari sistem Pool (halaman Kelola Pool).
+  // Generate legacy dari grup dihapus: satu jalur, mencegah saling timpa.
 
   const activeKnockouts = knockoutData.filter(
     (k) => k.category === activeCategory
   );
-
-  const handleGenerateKnockout = async () => {
-    const confirmed = await showConfirm(
-      "Generate sistem gugur dari Juara dan Runner-Up grup? (Data knockout saat ini akan tertimpa)",
-      "Generate Bracket Gugur?",
-      "Ya, Generate!"
-    );
-    if (!confirmed) return;
-    setLoading(true);
-    try {
-      await fetch(`/api/tournaments/${tournament.id}/brackets/knockout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: activeCategory }),
-      });
-      await refreshData();
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
-  };
 
   const submitKnockoutScore = async (
     matchId: number,
@@ -506,16 +562,11 @@ export default function BracketClient({
 
       {/* Category Tabs */}
       {categories.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
-          <div className="text-5xl mb-4">📭</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">
-            Belum Ada Kategori
-          </h2>
-          <p className="text-slate-500 max-w-md mx-auto">
-            Belum ada pemain yang mendaftar ke turnamen ini. Pemain yang
-            mendaftar akan otomatis muncul berdasarkan kategorinya.
-          </p>
-        </div>
+        <EmptyState
+          icon="📭"
+          title="Belum Ada Kategori"
+          description="Belum ada pemain yang mendaftar ke turnamen ini. Pemain yang mendaftar akan otomatis muncul berdasarkan kategorinya."
+        />
       ) : (
         <>
           <div className="flex gap-2 flex-wrap">
@@ -533,7 +584,7 @@ export default function BracketClient({
                 <span
                   className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                     activeCategory === cat
-                      ? "bg-white/20 text-white"
+                      ? "bg-[rgba(255,255,255,0.2)] text-white"
                       : "bg-slate-100 text-slate-500"
                   }`}
                 >
@@ -543,42 +594,51 @@ export default function BracketClient({
             ))}
           </div>
 
-          {/* Create Group */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">
-              Buat Grup Baru
-            </h3>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Nama grup, misal: Grup A"
-                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                onKeyDown={(e) => e.key === "Enter" && handleCreateGroup()}
-              />
-              <button
-                onClick={handleCreateGroup}
-                disabled={loading || !newGroupName.trim()}
-                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:opacity-40 transition-all shadow-sm"
-              >
-                + Tambah Grup
-              </button>
-            </div>
-          </div>
+          {/* Search grup per kategori */}
+          <SearchInput
+            value={groupSearch}
+            onChange={setGroupSearch}
+            placeholder="Cari grup / pemain di kategori ini..."
+          />
 
+          {hasPool ? (
+            <div className="space-y-6">
+              <PoolGroupBagan pools={activePoolStandings} />
+              <PoolStandings
+                pools={activePoolStandings}
+                search={groupSearch}
+              />
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-500">
+                🏊 Pertandingan pool (input skor) dikelola di{" "}
+                <strong>Kelola Pool</strong> atau Portal Wasit. Bagan gugur di
+                bawah di-generate dari ranking pool di atas.
+              </div>
+            </div>
+          ) : (
+            <>
           {/* Groups */}
           {filteredGroups.length === 0 ? (
-            <div className="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-12 text-center">
-              <p className="text-slate-500">
-                Belum ada grup untuk kategori{" "}
-                <strong>{categoryKeyToLabel(activeCategory)}</strong>. Buat grup baru
-                di atas.
+            <EmptyState
+              dashed
+              icon="🏓"
+              title="Belum Ada Grup"
+              description={
+                <>
+                  Belum ada grup untuk kategori{" "}
+                  <strong>{categoryKeyToLabel(activeCategory)}</strong>.
+                </>
+              }
+            />
+          ) : searchFilteredGroups.length === 0 ? (
+            <div className="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-10 text-center">
+              <p className="text-slate-500 text-sm">
+                Tidak ada grup yang cocok dengan pencarian{" "}
+                <strong>&quot;{groupSearch}&quot;</strong>.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredGroups.map((group) => (
+              {searchFilteredGroups.map((group) => (
                 <GroupCard
                   key={group.id}
                   group={group}
@@ -603,26 +663,20 @@ export default function BracketClient({
           {filteredGroups.length > 0 && (
             <OverallRanking groups={filteredGroups} category={activeCategory} />
           )}
+            </>
+          )}
 
           {/* KNOCKOUT PHASE */}
-          {filteredGroups.length > 0 && (
+          {(hasPool || filteredGroups.length > 0) && (
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 mt-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    ⚔️ Fase Knockout (Sistem Gugur)
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Bagan gugur berdasarkan Juara & Runner-Up dari semua grup.
-                  </p>
-                </div>
-                <button
-                  onClick={handleGenerateKnockout}
-                  disabled={loading}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:opacity-40 shadow-sm"
-                >
-                  ⚡ Generate Bracket Gugur
-                </button>
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-slate-900">
+                  ⚔️ Fase Knockout (Sistem Gugur)
+                </h3>
+                <p className="text-sm text-slate-500">
+                  Bagan gugur di-generate dari ranking pool di halaman Kelola
+                  Pool.
+                </p>
               </div>
 
               {activeKnockouts.length > 0 ? (
@@ -644,12 +698,12 @@ export default function BracketClient({
                   </div>
                 </div>
               ) : (
-                <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                  <p className="text-slate-500">
-                    Belum ada bagan gugur. Selesaikan pertandingan grup, lalu
-                    klik tombol Generate di atas.
-                  </p>
-                </div>
+                <EmptyState
+                  dashed
+                  icon="⚔️"
+                  title="Belum Ada Bagan Gugur"
+                  description="Buat template bagan (slot peringkat) atau generate dari ranking pool di halaman Kelola Pool."
+                />
               )}
             </div>
           )}
@@ -747,15 +801,8 @@ export default function BracketClient({
         </div>
       )}
 
-      {/* FIX 3: Loading overlay dipindah ke luar modal supaya selalu tampil */}
-      {loading && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white px-6 py-5 rounded-2xl shadow-xl flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-semibold text-slate-600">Memproses...</p>
-          </div>
-        </div>
-      )}
+      {/* Loading overlay selalu tampil saat memproses */}
+      {loading && <LoadingOverlay />}
     </div>
   );
 }
@@ -803,7 +850,7 @@ function GroupCard({
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       {/* Group Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-6 py-4 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-white">{group.name}</h3>
           <p className="text-indigo-200 text-xs mt-0.5">
@@ -817,7 +864,7 @@ function GroupCard({
           <button
             onClick={() => onGenerateMatches(group.id)}
             disabled={loading || group.members.length < 2}
-            className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg text-xs font-semibold hover:bg-white/30 disabled:opacity-40 transition-all"
+            className="px-4 py-2 bg-[rgba(255,255,255,0.2)] backdrop-blur-sm text-white rounded-lg text-xs font-semibold hover:bg-[rgba(255,255,255,0.3)] disabled:opacity-40 transition-all"
             title="Generate ulang match round-robin"
           >
             ⚡ Generate Match
@@ -903,32 +950,32 @@ function GroupCard({
           {/* Add Member Dropdown (inline) */}
           {addMemberModal === group.id && (
             <div className="mt-3 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-              <div className="flex gap-2">
-                <select
-                  value={selectedPlayerName}
-                  onChange={(e) => setSelectedPlayerName(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">-- Pilih Pemain --</option>
-                  {availablePlayers.map((p) => (
-                    <option key={p.id} value={p.fullName}>
-                      {p.fullName}
-                      {p.isTeam && p.memberNames.length > 0
-                        ? ` (${p.memberNames.join(" • ")})`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <PlayerCombobox
+                    items={availablePlayers.map((p) => ({
+                      value: p.fullName,
+                      label: p.fullName,
+                      subtitle:
+                        p.isTeam && p.memberNames.length > 0
+                          ? p.memberNames.join(" • ")
+                          : undefined,
+                    }))}
+                    value={selectedPlayerName}
+                    onChange={setSelectedPlayerName}
+                    placeholder="Ketik nama pemain..."
+                  />
+                </div>
                 <button
                   onClick={() => onAddMember(group.id)}
                   disabled={!selectedPlayerName || loading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 transition-all"
+                  className="px-4 py-4 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 transition-all"
                 >
                   Tambah
                 </button>
                 <button
                   onClick={() => setAddMemberModal(null)}
-                  className="px-3 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-all"
+                  className="px-3 py-4 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-all"
                 >
                   Batal
                 </button>
@@ -1202,6 +1249,218 @@ function OverallRanking({
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// BAGAN GRUP COMPONENT (matrix round-robin per pool — tampil
+// di atas perankingan gabungan)
+// ============================================================
+function PoolGroupBagan({ pools }: { pools: PoolStanding[] }) {
+  if (pools.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+          📊 Bagan Grup (Round-Robin)
+        </h3>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {pools.map((pool) => (
+          <div
+            key={pool.id}
+            className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col"
+          >
+            <div className="bg-[#1C4E67] px-4 py-3 flex items-center gap-3">
+              <span className="shrink-0 inline-flex items-center rounded-lg bg-[#C6E76B] px-2.5 py-1 text-xs font-black uppercase tracking-wider text-[#0F2A3D]">
+                Pool {pool.poolCode}
+              </span>
+              <div className="min-w-0">
+                <h4 className="font-bold text-sm text-[#ffffff] truncate">
+                  {pool.label}
+                </h4>
+                <p className="text-[11px] text-[rgba(255,255,255,0.7)]">
+                  Bagan Grup — hasil round-robin per peserta
+                </p>
+              </div>
+            </div>
+            <div className="px-4 py-4 flex-1">
+              <PoolMatrixTable
+                pool={{
+                  id: pool.id,
+                  poolCode: pool.poolCode,
+                  label: pool.label,
+                  members: [...pool.members]
+                    .sort((a, b) => a.id - b.id)
+                    .map((m) => ({ id: m.id, name: m.memberName })),
+                  matches: pool.matches,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// POOL STANDINGS COMPONENT (satu perankingan gabungan semua pool)
+// ============================================================
+function PoolStandings({
+  pools,
+  search,
+}: {
+  pools: PoolStanding[];
+  search: string;
+}) {
+  const q = search.trim().toLowerCase();
+
+  if (pools.length === 0) {
+    return (
+      <EmptyState
+        dashed
+        icon="🏊"
+        title="Belum Ada Pool"
+        description="Belum ada pool untuk kategori ini. Buat pool di halaman Kelola Pool."
+      />
+    );
+  }
+
+  const members = pools
+    .flatMap((p) =>
+      p.members
+        .filter((m) => m.rank != null && m.rank >= 1 && m.rank <= 2)
+        .map((m) => ({ ...m, poolLabel: p.label }))
+    )
+    .filter(
+      (m) =>
+        !q ||
+        m.memberName.toLowerCase().includes(q) ||
+        m.poolLabel.toLowerCase().includes(q)
+    )
+    .sort((a, b) => {
+      const ra = a.rank ?? 999;
+      const rb = b.rank ?? 999;
+      if (ra !== rb) return ra - rb;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
+      return b.pointsFor - a.pointsFor;
+    });
+
+  const allDone = pools.every(
+    (p) => p.status === "COMPLETED" || p.members.every((m) => m.played > 0)
+  );
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-gradient-to-r from-[#0F2A3D] to-[#1C4E67] px-5 py-4">
+        <h4 className="text-sm font-bold text-[#ffffff]">
+          🏅 Perankingan Gabungan (Top-2 per Pool) —{" "}
+          {categoryKeyToLabel(pools[0].categoryKey)}
+        </h4>
+        <p className="text-[rgba(255,255,255,0.7)] text-[11px] mt-0.5">
+          Juara & runner-up tiap pool menjadi satu klasemen peringkat.
+          {allDone
+            ? " ✅ Fase grup selesai — peringkat final."
+            : " ⏳ Fase grup berjalan — peringkat sementara."}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+              <th className="py-3 px-4 text-left font-bold">#</th>
+              <th className="py-3 px-4 text-left font-bold">Pemain</th>
+              <th className="py-3 px-4 text-left font-bold">Pool</th>
+              <th className="py-3 px-3 text-center font-bold">Main</th>
+              <th className="py-3 px-3 text-center font-bold">M</th>
+              <th className="py-3 px-3 text-center font-bold">K</th>
+              <th className="py-3 px-3 text-center font-bold">PF</th>
+              <th className="py-3 px-3 text-center font-bold">PA</th>
+              <th className="py-3 px-3 text-center font-bold">PD</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {members.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={9}
+                  className="py-6 px-4 text-center text-slate-400 text-sm"
+                >
+                  {q
+                    ? "Tidak ada peserta yang cocok dengan pencarian."
+                    : "Belum ada perhitungan peringkat. Isi skor pertandingan pool di Kelola Pool atau Portal Wasit agar juara & runner-up tiap pool tampil di sini."}
+                </td>
+              </tr>
+            ) : (
+              members.map((member, idx) => (
+                <tr
+                  key={member.id}
+                  className={`${
+                    idx === 0
+                      ? "bg-yellow-50"
+                      : idx === 1
+                      ? "bg-slate-50"
+                      : idx === 2
+                      ? "bg-amber-50/30"
+                      : ""
+                  } hover:bg-indigo-50 transition-colors`}
+                >
+                  <td className="py-3 px-4 font-bold text-slate-400">
+                    {idx === 0
+                      ? "🥇 1"
+                      : idx === 1
+                      ? "🥈 2"
+                      : idx === 2
+                      ? "🥉 3"
+                      : idx + 1}
+                  </td>
+                  <td className="py-3 px-4 font-semibold text-slate-800">
+                    {member.memberName}
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
+                      {member.poolLabel}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-center text-slate-600">
+                    {member.played}
+                  </td>
+                  <td className="py-3 px-3 text-center font-bold text-emerald-600">
+                    {member.wins}
+                  </td>
+                  <td className="py-3 px-3 text-center font-bold text-red-500">
+                    {member.losses}
+                  </td>
+                  <td className="py-3 px-3 text-center text-slate-600">
+                    {member.pointsFor}
+                  </td>
+                  <td className="py-3 px-3 text-center text-slate-600">
+                    {member.pointsAgainst}
+                  </td>
+                  <td
+                    className={`py-3 px-3 text-center font-bold ${
+                      member.pointDiff > 0
+                        ? "text-emerald-600"
+                        : member.pointDiff < 0
+                        ? "text-red-500"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    {member.pointDiff > 0 ? "+" : ""}
+                    {member.pointDiff}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

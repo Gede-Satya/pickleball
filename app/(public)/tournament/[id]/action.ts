@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 
 import type { PaymentMethod, Gender, MatchType } from "@prisma/client";
 
-import { buildCategoryInfo, autoAssignToPool, generatePoolMatches } from '@/lib/tournamentCategory'
+import { buildCategoryInfo } from '@/lib/tournamentCategory'
 import { parseTournamentGrades } from '@/lib/tournamentGrades'
 import { savePaymentProofFile } from '@/lib/paymentProof'
 
@@ -53,10 +53,9 @@ export async function registerPlayer(formData: FormData) {
   const grade = (formData.get('grade') as string) || 'SMA'
   const matchType = (formData.get('matchType') as MatchType) || 'SINGLE'
 
-  // Satu transaksi: player/team + pool + generate match semua atomic.
-  // autoAssignToPool mengunci baris turnamen (FOR UPDATE), sehingga
-  // pendaftaran massal yang berbarengan tetap aman (tidak overfill,
-  // tidak ada pool duplikat, status FULL akurat).
+  // Satu transaksi: player/team dicatat sebagai pendaftar.
+  // Penempatan ke pool dilakukan panitia setelah TM/pengundian
+  // melalui halaman admin kelola pool.
   await prisma.$transaction(async (tx) => {
     // Cek turnamen untuk ambil poolSize
     const tournament = await tx.tournament.findUnique({ where: { id: tournamentId } })
@@ -120,19 +119,6 @@ export async function registerPlayer(formData: FormData) {
         },
       })
 
-      const resPool = await autoAssignToPool(
-        tx,
-        tournamentId,
-        categoryInfo,
-        team.name,
-        tournament.poolSize,
-        { teamId: team.id }
-      )
-
-      // Auto-generate pool matches jika pool mencapai FULL
-      if (resPool.pool.status === 'FULL') {
-        await generatePoolMatches(tx, resPool.pool.id)
-      }
       return
     }
 
@@ -186,24 +172,11 @@ export async function registerPlayer(formData: FormData) {
         },
       })
 
-      const resPool = await autoAssignToPool(
-        tx,
-        tournamentId,
-        categoryInfo,
-        team.name,
-        tournament.poolSize,
-        { teamId: team.id }
-      )
-
-      // Auto-generate pool matches jika pool mencapai FULL
-      if (resPool.pool.status === 'FULL') {
-        await generatePoolMatches(tx, resPool.pool.id)
-      }
       return
     }
 
     // Simpan data pendaftar ke tabel Player
-    const player = await tx.player.create({
+    await tx.player.create({
       data: {
         fullName,
         schoolName,
@@ -217,24 +190,6 @@ export async function registerPlayer(formData: FormData) {
         paymentProof: paymentFields.paymentProof,
       }
     })
-
-    // Jika pendaftar SINGLE, langsung masukkan ke Pool
-    if (matchType === 'SINGLE') {
-      const categoryInfo = buildCategoryInfo(grade, gender, matchType)
-      const resPool = await autoAssignToPool(
-        tx,
-        tournamentId,
-        categoryInfo,
-        fullName,
-        tournament.poolSize,
-        { playerId: player.id }
-      )
-
-      // Auto-generate pool matches jika pool mencapai FULL
-      if (resPool.pool.status === 'FULL') {
-        await generatePoolMatches(tx, resPool.pool.id)
-      }
-    }
   })
 
   // Refresh halaman agar data terbaru termuat

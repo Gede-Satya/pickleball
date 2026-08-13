@@ -5,6 +5,7 @@ import type { MatchType, Player } from '@prisma/client'
 import { processTeamRegistration } from './action'
 import { showError } from '@/lib/swal'
 import { gradeToLabel } from '@/lib/tournamentGrades'
+import PlayerCombobox, { ComboboxItem } from '@/components/PlayerCombobox'
 
 interface RegistrationFormProps {
   tournamentId: number
@@ -27,6 +28,20 @@ export default function RegistrationForm({ tournamentId, players, grades }: Regi
   
   const p1 = players.find(p => p.id.toString() === player1Id)
   const p2 = players.find(p => p.id.toString() === player2Id)
+
+  const player1Items: ComboboxItem[] = players.map(p => ({
+    value: p.id.toString(),
+    label: p.fullName,
+    subtitle: `${p.gender === 'MALE' ? 'Putra' : 'Putri'}${p.schoolName ? ` • ${p.schoolName}` : ''}`,
+  }))
+
+  // Untuk Player 2: pemain yang sudah dipilih di Player 1 dinonaktifkan
+  const player2Items: ComboboxItem[] = players.map(p => ({
+    value: p.id.toString(),
+    label: p.fullName,
+    subtitle: `${p.gender === 'MALE' ? 'Putra' : 'Putri'}${p.schoolName ? ` • ${p.schoolName}` : ''}`,
+    disabled: p.id.toString() === player1Id,
+  }))
 
   if (matchType !== 'SINGLE' && p1 && p2) {
     if (p1.id === p2.id) {
@@ -106,43 +121,28 @@ export default function RegistrationForm({ tournamentId, players, grades }: Regi
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
           <div>
             <label className="text-sm font-bold text-slate-700 block mb-2">Pilih Player 1</label>
-            <select
-              title="Player 1"
-              name="player1Id"
-              required
+            <input type="hidden" name="player1Id" value={player1Id} />
+            <PlayerCombobox
+              items={player1Items}
               value={player1Id}
-              onChange={(e) => setPlayer1Id(e.target.value)}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none font-medium text-slate-700"
-            >
-              <option value="">-- Pilih Pemain --</option>
-              {players.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName} ({p.gender === 'MALE' ? 'Putra' : 'Putri'}) 
-                  {p.schoolName ? ` - ${p.schoolName}` : ''}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => {
+                setPlayer1Id(v)
+                if (p2 && v === p2.id.toString()) setPlayer2Id('')
+              }}
+              placeholder="Ketik nama pemain..."
+            />
           </div>
 
           {matchType !== 'SINGLE' && (
             <div>
               <label className="text-sm font-bold text-slate-700 block mb-2">Pilih Player 2</label>
-              <select
-                title="Player 2"
-                name="player2Id"
-                required
+              <input type="hidden" name="player2Id" value={player2Id} />
+              <PlayerCombobox
+                items={player2Items}
                 value={player2Id}
-                onChange={(e) => setPlayer2Id(e.target.value)}
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 transition-all outline-none font-medium text-slate-700"
-              >
-                <option value="">-- Pilih Pemain --</option>
-                {players.map(p => (
-                   <option key={p.id} value={p.id} disabled={p.id.toString() === player1Id}>
-                   {p.fullName} ({p.gender === 'MALE' ? 'Putra' : 'Putri'}) 
-                   {p.schoolName ? ` - ${p.schoolName}` : ''}
-                 </option>
-                ))}
-              </select>
+                onChange={setPlayer2Id}
+                placeholder="Ketik nama pemain..."
+              />
             </div>
           )}
         </div>
@@ -173,7 +173,7 @@ export default function RegistrationForm({ tournamentId, players, grades }: Regi
           <button
             type="submit"
             disabled={!!validationError || isPending}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-bold text-lg p-4 rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-blue-500/30"
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-[#4F46E5] to-[#2563EB] text-white font-bold text-lg p-4 rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-blue-500/30"
           >
             {isPending ? (
               <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>

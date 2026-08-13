@@ -4,13 +4,13 @@ import Image from 'next/image';
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-950 text-slate-300 py-16 border-t border-slate-800">
+    <footer className="bg-slate-950 text-slate-300 py-16 border-t border-[#1E293B]">
       <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12">
         
         {/* KOLOM 1: IDENTITAS & LOGO */}
         <div className="flex flex-col">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white border-2 border-slate-700">
+            <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white border-2 border-[#334155]">
               <Image 
                 src="/img/logo.png" 
                 alt="Logo IPF Denpasar" 
@@ -69,7 +69,7 @@ export default function Footer() {
               <span className="text-xl">📍</span>
               <span>
                 <strong className="text-slate-200 block mb-1">Sekretariat IPF Denpasar</strong>
-                Jl. Contoh Alamat No. 123, <br />
+               Jl. Raya Sesetan, <br />
                 Denpasar, Bali, Indonesia 80232
               </span>
             </li>
@@ -79,7 +79,7 @@ export default function Footer() {
             </li>
             <li className="flex items-center gap-3">
               <span className="text-xl">✉️</span>
-              <span className="hover:text-yellow-400 transition-colors cursor-pointer">halo@ipfdenpasar.com</span>
+              <span className="hover:text-yellow-400 transition-colors cursor-pointer">pickleballdenpasar@gmail.com</span>
             </li>
             
           </ul>
@@ -88,7 +88,7 @@ export default function Footer() {
       </div>
 
       {/* BAGIAN BAWAH (COPYRIGHT) */}
-      <div className="max-w-6xl mx-auto px-6 mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+      <div className="max-w-6xl mx-auto px-6 mt-16 pt-8 border-t border-[#1E293B] flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
         <p>&copy; {new Date().getFullYear()} Indonesia Pickleball Federation (IPF) Kota Denpasar. Hak cipta dilindungi.</p>
       </div>
     </footer>

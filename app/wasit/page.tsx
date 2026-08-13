@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import SearchInput from "@/components/SearchInput";
+import { displayParticipantName, parseSlotToken } from "@/lib/bracketSlot";
 
 // ============================================================
 // TYPES
@@ -36,6 +38,55 @@ type GroupData = {
   category: string;
   matches: GroupMatch[];
 };
+type PoolMatch = {
+  id: number;
+  member1Name: string;
+  member2Name: string;
+  score1: number | null;
+  score2: number | null;
+  winnerName: string | null;
+  status: string;
+};
+type PoolData = {
+  id: number;
+  label: string;
+  poolCode: string;
+  categoryKey: string;
+  matches: PoolMatch[];
+};
+type PoolApiMember = { memberName: string } | null;
+type PoolApiMatch = {
+  id: number;
+  member1: PoolApiMember;
+  member2: PoolApiMember;
+  score1: number | null;
+  score2: number | null;
+  winnerName: string | null;
+  status: string;
+};
+type PoolApiPool = {
+  id: number;
+  label: string;
+  poolCode: string;
+  categoryKey: string;
+  matches: PoolApiMatch[];
+};
+
+const mapApiPool = (p: PoolApiPool): PoolData => ({
+  id: p.id,
+  label: p.label,
+  poolCode: p.poolCode,
+  categoryKey: p.categoryKey,
+  matches: (p.matches ?? []).map((m) => ({
+    id: m.id,
+    member1Name: m.member1?.memberName ?? "TBD",
+    member2Name: m.member2?.memberName ?? "TBD",
+    score1: m.score1,
+    score2: m.score2,
+    winnerName: m.winnerName,
+    status: m.status,
+  })),
+});
 
 // ============================================================
 // MAIN COMPONENT
@@ -53,15 +104,18 @@ export default function WasitPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [groups, setGroups] = useState<GroupData[]>([]);
+  const [pools, setPools] = useState<PoolData[]>([]);
   const [knockouts, setKnockouts] = useState<KnockoutMatch[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState("");
   const [activeTab, setActiveTab] = useState<"grup" | "knockout">("grup");
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
   // Score modal
   type ScoreTarget =
     | { type: "group"; match: GroupMatch; groupId: number }
+    | { type: "pool"; match: PoolMatch; pool: PoolData }
     | { type: "knockout"; match: KnockoutMatch };
 
   const [scoreTarget, setScoreTarget] = useState<ScoreTarget | null>(null);
@@ -77,10 +131,10 @@ export default function WasitPage() {
     if (savedName) {
       setRefereeName(savedName);
       setStep("dashboard");
+      // eslint-disable-next-line react-hooks/immutability
       loadTournaments();
     }
     setMounted(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleLogin(e: React.FormEvent) {
@@ -111,14 +165,26 @@ export default function WasitPage() {
     setSelectedTournament(t);
     setLoading(true);
     try {
-      // Ambil grup matches
+      // Ambil grup matches (legacy)
       const resG = await fetch(`/api/tournaments/${t.id}/brackets`, { cache: "no-store" });
       const dataG = await resG.json();
       const fetchedGroups: GroupData[] = dataG.data?.groups || [];
-      setGroups(fetchedGroups);
 
-      // Derive categories
-      const cats = [...new Set(fetchedGroups.map((g) => g.category))];
+      // Ambil pool + match pool
+      const resP = await fetch(`/api/tournaments/${t.id}/pools`, { cache: "no-store" });
+      const dataP = await resP.json();
+      const allPools: PoolApiPool[] = dataP.data?.pools || [];
+      const fetchedPools: PoolData[] = allPools.map(mapApiPool);
+      setGroups(fetchedGroups);
+      setPools(fetchedPools);
+
+      // Derive categories: gabungan grup legacy + pool
+      const cats = [
+        ...new Set([
+          ...fetchedGroups.map((g) => g.category),
+          ...fetchedPools.map((p) => p.categoryKey),
+        ]),
+      ];
       setCategories(cats);
       if (cats.length > 0) {
         setActiveCategory(cats[0]);
@@ -161,6 +227,14 @@ export default function WasitPage() {
       });
       const dataG = await resG.json();
       setGroups(dataG.data?.groups || []);
+
+      const resP = await fetch(`/api/tournaments/${selectedTournament.id}/pools`, {
+        cache: "no-store",
+      });
+      const dataP = await resP.json();
+      const allPools: PoolApiPool[] = dataP.data?.pools || [];
+      setPools(allPools.map(mapApiPool));
+
       await loadKnockout(selectedTournament.id, activeCategory);
     } catch (e) {
       console.error(e);
@@ -199,6 +273,19 @@ export default function WasitPage() {
             }),
           }
         );
+      } else if (scoreTarget.type === "pool") {
+        res = await fetch(
+          `/api/tournaments/${selectedTournament.id}/pools/${scoreTarget.pool.id}/matches`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              matchId: scoreTarget.match.id,
+              score1: Number(tempScore1),
+              score2: Number(tempScore2),
+            }),
+          }
+        );
       } else {
         res = await fetch(
           `/api/tournaments/${selectedTournament.id}/brackets/knockout`,
@@ -231,6 +318,18 @@ export default function WasitPage() {
   }
 
   // ======================== DERIVED ========================
+  const activePools = pools.filter((p) => p.categoryKey === activeCategory);
+  const hasPool = activePools.length > 0;
+  const scheduledPoolMatches = activePools.flatMap((p) =>
+    p.matches
+      .filter((m) => m.status === "SCHEDULED")
+      .map((m) => ({ ...m, poolId: p.id, poolLabel: p.label, poolCode: p.poolCode }))
+  );
+  const donePoolMatches = activePools.flatMap((p) =>
+    p.matches
+      .filter((m) => m.status === "DONE")
+      .map((m) => ({ ...m, poolId: p.id, poolLabel: p.label, poolCode: p.poolCode }))
+  );
   const filteredGroups = groups.filter((g) => g.category === activeCategory);
   const scheduledGroupMatches = filteredGroups.flatMap((g) =>
     g.matches
@@ -244,9 +343,49 @@ export default function WasitPage() {
   );
   const scheduledKnockouts = knockouts.filter(
     (k) => k.status === "SCHEDULED" && k.player1Name && k.player2Name &&
-      k.player1Name !== "BYE" && k.player2Name !== "BYE"
+      k.player1Name !== "BYE" && k.player2Name !== "BYE" &&
+      !parseSlotToken(k.player1Name) && !parseSlotToken(k.player2Name)
   );
   const doneKnockouts = knockouts.filter((k) => k.status === "DONE");
+
+  // Filter pencarian: nama pemain / grup / ronde
+  const q = search.trim().toLowerCase();
+  const qMatch = (name: string | null | undefined) =>
+    (name ?? "").toLowerCase().includes(q);
+  const filteredScheduledGroupMatches = scheduledGroupMatches.filter(
+    (m) =>
+      !q ||
+      qMatch(m.player1Name) ||
+      qMatch(m.player2Name) ||
+      (m.groupName ?? "").toLowerCase().includes(q)
+  );
+  const filteredDoneGroupMatches = doneGroupMatches.filter(
+    (m) =>
+      !q ||
+      qMatch(m.player1Name) ||
+      qMatch(m.player2Name) ||
+      (m.groupName ?? "").toLowerCase().includes(q)
+  );
+  const filteredScheduledKnockouts = scheduledKnockouts.filter(
+    (k) => !q || qMatch(k.player1Name) || qMatch(k.player2Name) || (k.roundText ?? "").toLowerCase().includes(q)
+  );
+  const filteredDoneKnockouts = doneKnockouts.filter(
+    (k) => !q || qMatch(k.player1Name) || qMatch(k.player2Name) || (k.roundText ?? "").toLowerCase().includes(q)
+  );
+  const filteredScheduledPoolMatches = scheduledPoolMatches.filter(
+    (m) =>
+      !q ||
+      qMatch(m.member1Name) ||
+      qMatch(m.member2Name) ||
+      (m.poolLabel ?? "").toLowerCase().includes(q)
+  );
+  const filteredDonePoolMatches = donePoolMatches.filter(
+    (m) =>
+      !q ||
+      qMatch(m.member1Name) ||
+      qMatch(m.member2Name) ||
+      (m.poolLabel ?? "").toLowerCase().includes(q)
+  );
 
   const categoryLabel = (cat: string) => {
     const parts = cat.split("_");
@@ -261,7 +400,7 @@ export default function WasitPage() {
   // ============================================================
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#0F172A] flex items-center justify-center p-4">
         <div className="text-center">
           <span className="text-4xl inline-block animate-bounce">🏁</span>
           <p className="text-slate-400 mt-4 text-sm">Memuat portal...</p>
@@ -275,7 +414,7 @@ export default function WasitPage() {
   // ============================================================
   if (step === "login") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#0F172A] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           {/* Logo/Title */}
           <div className="text-center mb-8">
@@ -287,7 +426,7 @@ export default function WasitPage() {
           </div>
 
           {/* Form */}
-          <div className="bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl p-8 shadow-2xl">
+          <div className="bg-[rgba(255,255,255,0.1)] backdrop-blur-xl border border-[rgba(255,255,255,0.15)] rounded-3xl p-8 shadow-2xl">
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-2">
@@ -299,7 +438,7 @@ export default function WasitPage() {
                   value={nameInput}
                   onChange={(e) => { setNameInput(e.target.value); setLoginError(""); }}
                   placeholder="Tulis nama lengkap Anda..."
-                  className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-base"
+                  className="w-full px-4 py-3.5 bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.2)] rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-base"
                   autoFocus
                 />
                 {loginError && (
@@ -307,13 +446,13 @@ export default function WasitPage() {
                 )}
               </div>
 
-              <p className="text-xs text-slate-400 bg-white/5 rounded-lg p-3 border border-white/10">
+              <p className="text-xs text-slate-400 bg-[rgba(255,255,255,0.05)] rounded-lg p-3 border border-[rgba(255,255,255,0.1)]">
                 ⚠️ Nama yang Anda masukkan akan tercatat otomatis setiap kali Anda menginput skor. Pastikan nama sudah benar.
               </p>
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-bold rounded-xl transition-colors text-base shadow-lg shadow-yellow-400/30"
+                className="w-full py-3.5 bg-yellow-400 hover:bg-yellow-300 text-[#0F172A] font-bold rounded-xl transition-colors text-base shadow-lg shadow-yellow-400/30"
               >
                 Masuk sebagai Wasit →
               </button>
@@ -328,9 +467,9 @@ export default function WasitPage() {
   // RENDER — DASHBOARD
   // ============================================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#0F172A]">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-xl border-b border-white/10">
+      <header className="sticky top-0 z-40 bg-[rgba(15,23,42,0.8)] backdrop-blur-xl border-b border-[rgba(255,255,255,0.1)]">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-black text-white">🏁 Portal Wasit</h1>
@@ -338,7 +477,7 @@ export default function WasitPage() {
           </div>
           <button
             onClick={() => { localStorage.removeItem("wasit-referee-name"); setStep("login"); setRefereeName(""); setNameInput(""); setSelectedTournament(null); }}
-            className="text-xs px-4 py-2 bg-white/10 border border-white/20 text-slate-300 rounded-lg hover:bg-white/20 transition-colors"
+            className="text-xs px-4 py-2 bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.2)] text-slate-300 rounded-lg hover:bg-[rgba(255,255,255,0.2)] transition-colors"
           >
             Ganti Wasit
           </button>
@@ -352,7 +491,7 @@ export default function WasitPage() {
           <div className="space-y-4">
             <h2 className="text-white font-bold text-xl">Pilih Turnamen</h2>
             {tournaments.length === 0 ? (
-              <div className="bg-white/10 border border-white/15 rounded-2xl p-12 text-center">
+              <div className="bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.15)] rounded-2xl p-12 text-center">
                 <span className="text-4xl block mb-3">🏜️</span>
                 <p className="text-slate-400">Tidak ada turnamen yang sedang berlangsung.</p>
               </div>
@@ -362,7 +501,7 @@ export default function WasitPage() {
                   <button
                     key={t.id}
                     onClick={() => handleSelectTournament(t)}
-                    className="flex items-center justify-between bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl p-5 text-left transition-all group"
+                    className="flex items-center justify-between bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] border border-[rgba(255,255,255,0.15)] rounded-2xl p-5 text-left transition-all group"
                   >
                     <div>
                       <p className="font-bold text-white text-base group-hover:text-yellow-300 transition-colors">{t.name}</p>
@@ -397,8 +536,8 @@ export default function WasitPage() {
                     onClick={() => handleCategoryChange(cat)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                       activeCategory === cat
-                        ? "bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-400/30"
-                        : "bg-white/10 border border-white/15 text-slate-300 hover:bg-white/20"
+                        ? "bg-yellow-400 text-[#0F172A] shadow-lg shadow-yellow-400/30"
+                        : "bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.15)] text-slate-300 hover:bg-[rgba(255,255,255,0.2)]"
                     }`}
                   >
                     {categoryLabel(cat)}
@@ -407,8 +546,16 @@ export default function WasitPage() {
               </div>
             )}
 
+            {/* Search pertandingan */}
+            <SearchInput
+              variant="dark"
+              value={search}
+              onChange={setSearch}
+              placeholder="Cari pemain / grup / ronde..."
+            />
+
             {/* Tab Grup/Knockout */}
-            <div className="flex gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-xl p-1">
               {(["grup", "knockout"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -428,19 +575,74 @@ export default function WasitPage() {
               <div className="text-center py-8 text-slate-400 text-sm">Memuat data...</div>
             )}
 
-            {!loading && activeTab === "grup" && (
+            {!loading && activeTab === "grup" && hasPool && (
+              <div className="space-y-6">
+                {/* Match Pool Belum Dilayani */}
+                <section>
+                  <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                    Pertandingan Menunggu Input ({filteredScheduledPoolMatches.length})
+                  </h3>
+                  {filteredScheduledPoolMatches.length === 0 ? (
+                    <p className="text-slate-500 text-sm">Semua pertandingan pool sudah selesai.</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {filteredScheduledPoolMatches.map((m) => (
+                        <MatchCard
+                          key={m.id}
+                          player1={m.member1Name}
+                          player2={m.member2Name}
+                          score1={null}
+                          score2={null}
+                          status="SCHEDULED"
+                          groupName={m.poolLabel}
+                          onInput={() => {
+                            const pool = activePools.find((p) => p.id === m.poolId);
+                            if (pool) openScoreModal({ type: "pool", match: m, pool });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Match Pool Selesai */}
+                {filteredDonePoolMatches.length > 0 && (
+                  <section>
+                    <h3 className="text-slate-400 font-bold mb-3 text-sm uppercase tracking-wider">
+                      Selesai ({filteredDonePoolMatches.length})
+                    </h3>
+                    <div className="grid gap-2">
+                      {filteredDonePoolMatches.map((m) => (
+                        <MatchCard
+                          key={m.id}
+                          player1={m.member1Name}
+                          player2={m.member2Name}
+                          score1={m.score1}
+                          score2={m.score2}
+                          status="DONE"
+                          groupName={m.poolLabel}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+
+            {!loading && activeTab === "grup" && !hasPool && (
               <div className="space-y-6">
                 {/* Match Belum Dilayani */}
                 <section>
                   <h3 className="text-white font-bold mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-                    Pertandingan Menunggu Input ({scheduledGroupMatches.length})
+                    Pertandingan Menunggu Input ({filteredScheduledGroupMatches.length})
                   </h3>
-                  {scheduledGroupMatches.length === 0 ? (
+                  {filteredScheduledGroupMatches.length === 0 ? (
                     <p className="text-slate-500 text-sm">Semua pertandingan sudah selesai.</p>
                   ) : (
                     <div className="grid gap-3">
-                      {scheduledGroupMatches.map((m) => (
+                      {filteredScheduledGroupMatches.map((m) => (
                         <MatchCard
                           key={m.id}
                           player1={m.player1Name}
@@ -457,13 +659,13 @@ export default function WasitPage() {
                 </section>
 
                 {/* Match Selesai */}
-                {doneGroupMatches.length > 0 && (
+                {filteredDoneGroupMatches.length > 0 && (
                   <section>
                     <h3 className="text-slate-400 font-bold mb-3 text-sm uppercase tracking-wider">
-                      Selesai ({doneGroupMatches.length})
+                      Selesai ({filteredDoneGroupMatches.length})
                     </h3>
                     <div className="grid gap-2">
-                      {doneGroupMatches.map((m) => (
+                      {filteredDoneGroupMatches.map((m) => (
                         <MatchCard
                           key={m.id}
                           player1={m.player1Name}
@@ -486,17 +688,17 @@ export default function WasitPage() {
                 <section>
                   <h3 className="text-white font-bold mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-                    Pertandingan Menunggu Input ({scheduledKnockouts.length})
+                    Pertandingan Menunggu Input ({filteredScheduledKnockouts.length})
                   </h3>
-                  {scheduledKnockouts.length === 0 ? (
+                  {filteredScheduledKnockouts.length === 0 ? (
                     <p className="text-slate-500 text-sm">Tidak ada pertandingan gugur yang menunggu, atau bracket belum digenerate.</p>
                   ) : (
                     <div className="grid gap-3">
-                      {scheduledKnockouts.map((k) => (
+                      {filteredScheduledKnockouts.map((k) => (
                         <MatchCard
                           key={k.id}
-                          player1={k.player1Name || "TBD"}
-                          player2={k.player2Name || "TBD"}
+                          player1={displayParticipantName(k.player1Name) || "TBD"}
+                          player2={displayParticipantName(k.player2Name) || "TBD"}
                           score1={null}
                           score2={null}
                           status="SCHEDULED"
@@ -508,13 +710,13 @@ export default function WasitPage() {
                   )}
                 </section>
 
-                {doneKnockouts.length > 0 && (
+                {filteredDoneKnockouts.length > 0 && (
                   <section>
                     <h3 className="text-slate-400 font-bold mb-3 text-sm uppercase tracking-wider">
-                      Selesai ({doneKnockouts.length})
+                      Selesai ({filteredDoneKnockouts.length})
                     </h3>
                     <div className="grid gap-2">
-                      {doneKnockouts.map((k) => (
+                      {filteredDoneKnockouts.map((k) => (
                         <MatchCard
                           key={k.id}
                           player1={k.player1Name || "TBD"}
@@ -538,7 +740,7 @@ export default function WasitPage() {
       {/* Score Input Modal */}
       {scoreTarget && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-white/15 rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+          <div className="bg-[#0F172A] border border-[rgba(255,255,255,0.15)] rounded-3xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-white text-center mb-1">Input Skor</h3>
             <p className="text-xs text-yellow-400 text-center mb-5 font-semibold">Wasit: {refereeName}</p>
 
@@ -547,7 +749,9 @@ export default function WasitPage() {
                 {/* Player 1 */}
                 <div className="flex-1 text-center">
                   <p className="text-xs text-slate-400 font-medium mb-2 leading-tight truncate">
-                    {scoreTarget.type === "group"
+                    {scoreTarget.type === "pool"
+                      ? scoreTarget.match.member1Name
+                      : scoreTarget.type === "group"
                       ? scoreTarget.match.player1Name
                       : scoreTarget.match.player1Name || "TBD"}
                   </p>
@@ -557,7 +761,7 @@ export default function WasitPage() {
                     required
                     value={tempScore1}
                     onChange={(e) => setTempScore1(e.target.value)}
-                    className="w-full h-20 text-center text-4xl font-black bg-white/10 border-2 border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    className="w-full h-20 text-center text-4xl font-black bg-[rgba(255,255,255,0.1)] border-2 border-[rgba(255,255,255,0.2)] rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                     autoFocus
                   />
                 </div>
@@ -565,7 +769,9 @@ export default function WasitPage() {
                 {/* Player 2 */}
                 <div className="flex-1 text-center">
                   <p className="text-xs text-slate-400 font-medium mb-2 leading-tight truncate">
-                    {scoreTarget.type === "group"
+                    {scoreTarget.type === "pool"
+                      ? scoreTarget.match.member2Name
+                      : scoreTarget.type === "group"
                       ? scoreTarget.match.player2Name
                       : scoreTarget.match.player2Name || "TBD"}
                   </p>
@@ -575,7 +781,7 @@ export default function WasitPage() {
                     required
                     value={tempScore2}
                     onChange={(e) => setTempScore2(e.target.value)}
-                    className="w-full h-20 text-center text-4xl font-black bg-white/10 border-2 border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    className="w-full h-20 text-center text-4xl font-black bg-[rgba(255,255,255,0.1)] border-2 border-[rgba(255,255,255,0.2)] rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -594,14 +800,14 @@ export default function WasitPage() {
                 <button
                   type="button"
                   onClick={() => setScoreTarget(null)}
-                  className="flex-1 py-3 bg-white/10 border border-white/15 text-slate-300 rounded-xl font-bold hover:bg-white/20 transition-colors"
+                  className="flex-1 py-3 bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.15)] text-slate-300 rounded-xl font-bold hover:bg-[rgba(255,255,255,0.2)] transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submitting || tempScore1 === "" || tempScore2 === ""}
-                  className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 text-slate-900 rounded-xl font-black transition-colors disabled:opacity-40 shadow-lg shadow-yellow-400/20"
+                  className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-300 text-[#0F172A] rounded-xl font-black transition-colors disabled:opacity-40 shadow-lg shadow-yellow-400/20"
                 >
                   {submitting ? "Menyimpan..." : "Simpan Skor"}
                 </button>
@@ -643,8 +849,8 @@ function MatchCard({
   return (
     <div className={`rounded-2xl border p-4 transition-all ${
       isDone
-        ? "bg-white/5 border-white/10"
-        : "bg-white/10 border-yellow-400/30 hover:border-yellow-400/60"
+        ? "bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.1)]"
+        : "bg-[rgba(255,255,255,0.1)] border-yellow-400/30 hover:border-yellow-400/60"
     }`}>
       <div className="flex items-center gap-1 mb-3">
         {groupName && (
@@ -684,7 +890,7 @@ function MatchCard({
       {!isDone && onInput && (
         <button
           onClick={onInput}
-          className="w-full mt-3 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 rounded-xl font-bold text-sm transition-colors shadow shadow-yellow-400/20"
+          className="w-full mt-3 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-[#0F172A] rounded-xl font-bold text-sm transition-colors shadow shadow-yellow-400/20"
         >
           Input Skor
         </button>

@@ -1,7 +1,7 @@
 /**
  * /api/tournaments/[id]/players/route.ts
  * ============================================================
- * Daftarkan player ke turnamen + auto-assign ke pool yang sesuai
+ * Daftarkan player ke turnamen (penempatan pool dilakukan panitia)
  * ============================================================
  */
 
@@ -10,7 +10,6 @@ import { successResponse, errorResponse } from "@/lib/apiResponse";
 import {
   buildCategoryInfo,
   validateGenderForMatchType,
-  autoAssignToPool,
 } from "@/lib/tournamentCategory";
 
 const prisma = new PrismaClient();
@@ -55,7 +54,7 @@ export async function GET(
 
 // ----------------------------------------------------------------
 // POST: Daftarkan player baru (hanya untuk SINGLE)
-//       → Otomatis menentukan categoryKey & masuk ke pool
+//       → Menentukan categoryKey; penempatan pool oleh panitia
 // ----------------------------------------------------------------
 export async function POST(
   req: Request,
@@ -111,13 +110,13 @@ export async function POST(
       return errorResponse("Turnamen tidak ditemukan 🔍", 404, "NOT_FOUND");
     }
 
-    // --- Buat player + auto-assign ke pool dalam SATU transaksi ---
-    // autoAssignToPool mengunci baris turnamen (FOR UPDATE), jadi aman
-    // dipanggil bersamaan oleh banyak pendaftar.
+    // --- Buat player dalam satu transaksi (tanpa assign pool) ---
+    // Pool dibuat & diisi oleh panitia melalui halaman kelola pool
+    // setelah TM/pengundian.
     const categoryInfo = buildCategoryInfo(grade, gender, matchType);
 
-    const result = await prisma.$transaction(async (tx) => {
-      const player = await tx.player.create({
+    const player = await prisma.$transaction((tx) =>
+      tx.player.create({
         data: {
           fullName,
           schoolName,
@@ -127,33 +126,13 @@ export async function POST(
           matchType,
           tournamentId,
         },
-      });
-
-      const { pool, member, isNewPool } = await autoAssignToPool(
-        tx,
-        tournamentId,
-        categoryInfo,
-        fullName,
-        tournament.poolSize,
-        { playerId: player.id }
-      );
-
-      return { player, pool, member, isNewPool };
-    });
+      })
+    );
 
     return successResponse(
-      `Player berhasil didaftarkan ke ${result.isNewPool ? "pool baru" : "pool yang sudah ada"} 🎉`,
+      "Player berhasil didaftarkan 🎉 (penempatan pool menunggu pengundian panitia)",
       {
-        player: result.player,
-        pool: {
-          id: result.pool.id,
-          label: result.pool.label,
-          poolCode: result.pool.poolCode,
-          categoryKey: result.pool.categoryKey,
-          status: result.pool.status,
-          isNewPool: result.isNewPool,
-        },
-        poolMember: result.member,
+        player,
         categoryKey: categoryInfo.key,
         categoryLabel: categoryInfo.label,
       },

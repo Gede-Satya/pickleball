@@ -11,6 +11,7 @@ import {
   generatePoolMatches,
   recalculatePoolStandings,
 } from "@/lib/tournamentCategory";
+import { fillBracketFromPools } from "@/lib/bracketTemplate";
 
 const prisma = new PrismaClient();
 
@@ -175,8 +176,11 @@ export async function PUT(
     // Hitung ulang standings setelah update skor
     await recalculatePoolStandings(prisma, pid);
 
-    // Cek apakah semua match DONE → beri tahu client
+    // Auto-fill slot bagan template yang sudah bisa di-resolve dari peringkat pool
     const pool = await prisma.pool.findUnique({ where: { id: pid } });
+    if (pool) {
+      await fillBracketFromPools(prisma, pool.tournamentId, pool.categoryKey);
+    }
 
     return successResponse("Skor berhasil diupdate 📝", {
       matchId: match.id,

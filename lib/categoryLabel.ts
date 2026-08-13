@@ -24,6 +24,26 @@ const MATCH_LABEL: Record<(typeof MATCH_TYPES)[number], string> = {
 };
 
 /**
+ * Membuat canonical category key untuk seorang pemain.
+ * Aman diimport dari client component (tanpa dependensi server).
+ *
+ * Contoh:
+ *   buildPlayerCategoryKey("SMA", "MALE", "SINGLE") → "SMA_MALE_SINGLE"
+ *   buildPlayerCategoryKey("SMP", "FEMALE", "DOUBLE") → "SMP_FEMALE_DOUBLE"
+ *   buildPlayerCategoryKey("SMA", null, "MIXED") → "SMA_MIXED"
+ */
+export function buildPlayerCategoryKey(
+  grade: string,
+  gender: "MALE" | "FEMALE" | null,
+  matchType: "SINGLE" | "DOUBLE" | "MIXED"
+): string {
+  if (matchType === "MIXED") {
+    return `${grade}_MIXED`;
+  }
+  return `${grade}_${gender}_${matchType}`;
+}
+
+/**
  * Mengubah canonical category key menjadi label ramah pengguna.
  *
  * Grade bebas (tidak harus enum): "U12_MALE_SINGLE" → "U-12 Putra Single"

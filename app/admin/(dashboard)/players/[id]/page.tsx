@@ -35,7 +35,7 @@ export default async function EditPlayerPage({ params }: { params: Promise<{ id:
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-500/30">
+          <div className="w-14 h-14 bg-gradient-to-br from-[#3B82F6] to-[#4F46E5] rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-500/30">
             🎾
           </div>
           <div>
@@ -151,7 +151,7 @@ export default async function EditPlayerPage({ params }: { params: Promise<{ id:
         <div className="pt-8 mt-4 border-t border-slate-100">
           <button 
             type="submit" 
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-500/30 transition-all hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-[#2563EB] to-[#4F46E5] hover:from-[#1D4ED8] hover:to-[#4338CA] text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-500/30 transition-all hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-2"
           >
             <span>Simpan Perubahan</span>
             <span className="text-xl">✨</span>

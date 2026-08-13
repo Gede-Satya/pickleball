@@ -27,11 +27,11 @@ export default async function TournamentDetailPage({
         
         {/* Gambar Banner Turnamen */}
         {tournament.image ? (
-          <div className="w-full h-[300px] md:h-[400px] bg-slate-800">
+          <div className="w-full h-[300px] md:h-[400px] bg-[#1E293B]">
             <img src={tournament.image} alt={tournament.name} className="w-full h-full object-cover" />
           </div>
         ) : (
-          <div className="w-full h-48 bg-slate-800 flex items-center justify-center text-white font-bold text-2xl">
+          <div className="w-full h-48 bg-[#1E293B] flex items-center justify-center text-[#ffffff] font-bold text-2xl">
             {tournament.name}
           </div>
         )}

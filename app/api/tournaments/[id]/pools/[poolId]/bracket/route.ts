@@ -8,6 +8,8 @@
 import { PrismaClient } from "@prisma/client";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { buildBracket } from "@/lib/bracketGenerator";
+import { buildTemplateBracket, fillBracketFromPools } from "@/lib/bracketTemplate";
+import { revalidatePath } from "next/cache";
 
 const prisma = new PrismaClient();
 
@@ -48,8 +50,10 @@ export async function GET(
 // POST: Generate bracket knockout dari top-N member semua pool
 //       dalam kategori yang sama
 //
-// Payload (opsional): { topN: 2 }
-//   topN = berapa pemain/tim lolos dari tiap pool (default 2)
+// Mode 1 (default): { topN: 2 } — dari ranking pool yang SUDAH selesai
+// Mode 2 (template): { template: true, slots: ["@@A:1@@", ...] }
+//       — bagan placeholder peringkat SEBELUM fase grup selesai
+// Mode 3 (fill): { fill: true } — resolve token → nama peringkat pool
 // ----------------------------------------------------------------
 export async function POST(
   req: Request,
@@ -60,16 +64,70 @@ export async function POST(
 
   try {
     const body = await req.json().catch(() => ({}));
-    const topN: number = body?.topN ?? 2;
-
-    if (topN < 1 || topN > 8) {
-      return errorResponse("topN harus antara 1 hingga 8 ⚠️", 400, "BAD_REQUEST");
-    }
 
     // Cek pool ini ada
     const pool = await prisma.pool.findUnique({ where: { id: Number(poolId) } });
     if (!pool) {
       return errorResponse("Pool tidak ditemukan 🔍", 404, "NOT_FOUND");
+    }
+
+    // ============ MODE 3: Isi otomatis token dari peringkat pool ============
+    if (body?.fill === true) {
+      const filled = await fillBracketFromPools(
+        prisma,
+        tournamentId,
+        pool.categoryKey
+      );
+      return successResponse(
+        `Bracket diisi otomatis dari peringkat pool (${filled} slot terisi) 🔄`,
+        { categoryKey: pool.categoryKey, filledCount: filled }
+      );
+    }
+
+    // ============ MODE 2: Template bagan placeholder peringkat ============
+    if (body?.template === true) {
+      const slots: string[] = body?.slots;
+      if (!Array.isArray(slots) || slots.length === 0) {
+        return errorResponse(
+          "slots wajib berupa array token slot (mis. [\"@@A:1@@\", \"BYE\"]) ⚠️",
+          400,
+          "BAD_REQUEST"
+        );
+      }
+
+      try {
+        const bracketMatches = await buildTemplateBracket(
+          prisma,
+          tournamentId,
+          pool.categoryKey,
+          slots
+        );
+
+        revalidatePath(`/admin/tournaments/${tournamentId}/brackets`);
+        revalidatePath(`/tournament/${tournamentId}/bracket`);
+        revalidatePath(`/tournament/${tournamentId}/schedule`);
+
+        return successResponse(
+          `Template bagan ${pool.categoryKey} berhasil dibuat (${slots.filter((s) => s !== "BYE").length} slot) 🏗️`,
+          {
+            categoryKey: pool.categoryKey,
+            slotCount: slots.length,
+            matches: bracketMatches,
+          },
+          201
+        );
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Gagal membuat template bagan ❌";
+        return errorResponse(msg, 400, "BAD_REQUEST");
+      }
+    }
+
+    // ============ MODE 1 (default): Generate dari ranking pool ============
+    const topN: number = body?.topN ?? 2;
+
+    if (topN < 1 || topN > 8) {
+      return errorResponse("topN harus antara 1 hingga 8 ⚠️", 400, "BAD_REQUEST");
     }
 
     // Ambil semua pool dalam kategori yang sama (tournamentId + categoryKey)
@@ -115,6 +173,11 @@ export async function POST(
       pool.categoryKey,
       prisma
     );
+
+    // Supaya hasil generate langsung tampil di halaman bagan & publik
+    revalidatePath(`/admin/tournaments/${tournamentId}/brackets`);
+    revalidatePath(`/tournament/${tournamentId}/bracket`);
+    revalidatePath(`/tournament/${tournamentId}/schedule`);
 
     return successResponse(
       `Bracket ${pool.categoryKey} berhasil di-generate dari ${allPoolsInCategory.length} pool dengan ${seededNames.length} peserta 🏆`,

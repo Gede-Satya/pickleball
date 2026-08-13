@@ -1,1 +1,73 @@
 @import "tailwindcss";
+
+/* Mode gelap berbasis kelas .dark di <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Mode gelap: remap token warna Tailwind 4 di dalam scope .dark.
+ * Karena utility Tailwind 4 mengacu var(--color-*), seluruh UI
+ * (bg-white, text-slate-*, badge berwarna, dst.) otomatis ikut
+ * gelap tanpa mengubah satu-satu class di tiap komponen.
+ */
+.dark {
+  color-scheme: dark;
+
+  /* Permukaan netral */
+  --color-white: #1e293b;
+  --color-slate-50: #0f172a;
+  --color-slate-100: #26344a;
+  --color-slate-200: #334155;
+  --color-slate-300: #64748b;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #a8b3c6;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #e2e8f0;
+  --color-slate-800: #f1f5f9;
+  --color-slate-900: #ffffff;
+
+  /* Tint & teks aksen (badge / tabel / hover) */
+  --color-indigo-50: #1e2447;
+  --color-indigo-100: #2b3168;
+  --color-indigo-200: #4f46e5;
+  --color-indigo-600: #a5b4fc;
+  --color-indigo-700: #c7d2fe;
+  --color-blue-50: #0f2647;
+  --color-blue-100: #16305c;
+  --color-blue-200: #1e40af;
+  --color-blue-300: #1e3a8a;
+  --color-blue-600: #60a5fa;
+  --color-blue-700: #93c5fd;
+  --color-emerald-50: #0b2e26;
+  --color-emerald-100: #123b2c;
+  --color-emerald-200: #059669;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+  --color-red-50: #33161a;
+  --color-red-100: #44202a;
+  --color-red-200: #b91c1c;
+  --color-red-500: #f87171;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+  --color-rose-700: #fda4af;
+  --color-amber-50: #33280f;
+  --color-amber-100: #443316;
+  --color-amber-200: #a16207;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-yellow-50: #33300f;
+  --color-yellow-100: #443f13;
+  --color-yellow-200: #a16207;
+  --color-yellow-300: #a16207;
+  --color-yellow-600: #facc15;
+  --color-yellow-700: #fde047;
+  --color-sky-50: #0c2e42;
+  --color-sky-100: #123e57;
+  --color-sky-200: #0369a1;
+  --color-sky-600: #38bdf8;
+  --color-sky-700: #7dd3fc;
+  --color-purple-50: #241e3d;
+  --color-purple-100: #2e2450;
+  --color-purple-200: #7e22ce;
+  --color-purple-600: #c4b5fd;
+  --color-purple-700: #d8b4fe;
+}

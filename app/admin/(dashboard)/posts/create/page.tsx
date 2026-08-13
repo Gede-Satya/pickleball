@@ -61,7 +61,7 @@ export default function CreatePostPage() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-slate-100">
-            <button type="submit" disabled={isUploading} className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white px-8 py-3 rounded-lg font-medium">
+            <button type="submit" disabled={isUploading} className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500 text-white px-8 py-3 rounded-lg font-medium">
               {isUploading ? "Tunggu..." : "Terbitkan Artikel"}
             </button>
           </div>

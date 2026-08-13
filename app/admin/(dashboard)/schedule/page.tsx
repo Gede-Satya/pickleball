@@ -84,7 +84,7 @@ export default async function AdminSchedulePage() {
                 </span>
                 <Link
                   href={`/admin/schedule/${t.id}`}
-                  className="px-5 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl text-sm transition-all active:scale-95"
+                  className="px-5 py-2 bg-yellow-400 hover:bg-yellow-500 text-[#0F172A] font-bold rounded-xl text-sm transition-all active:scale-95"
                 >
                   Atur Jadwal →
                 </Link>

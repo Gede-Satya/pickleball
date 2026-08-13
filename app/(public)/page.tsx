@@ -56,7 +56,7 @@ export default async function HomePage() {
                 href={`/tournament/${t.id}`}
                 className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col"
               >
-                <div className="h-44 w-full relative bg-slate-800">
+                <div className="h-44 w-full relative bg-[#1E293B]">
                   {t.image ? (
                     <img
                       src={t.image}

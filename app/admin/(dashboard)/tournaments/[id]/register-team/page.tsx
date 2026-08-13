@@ -43,7 +43,7 @@ export default async function RegisterTeamPage({ params }: { params: Promise<{ i
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-500/30">
+          <div className="w-14 h-14 bg-gradient-to-br from-[#6366F1] to-[#2563EB] rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-500/30">
             🤝
           </div>
           <div>

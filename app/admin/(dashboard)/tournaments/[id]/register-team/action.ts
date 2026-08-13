@@ -3,7 +3,7 @@
 import { PrismaClient, MatchType, Gender } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { buildCategoryInfo, validateGenderForMatchType, autoAssignToPool, generatePoolMatches } from '@/lib/tournamentCategory'
+import { buildCategoryInfo, validateGenderForMatchType } from '@/lib/tournamentCategory'
 
 const prisma = new PrismaClient()
 
@@ -64,12 +64,8 @@ export async function processTeamRegistration(prevState: unknown, formData: Form
     const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } })
     if (!tournament) return { error: 'Turnamen tidak ditemukan' }
 
-    let teamIdToUse: number | undefined = undefined
-    const memberNameToUse = teamName
-
-    // Satu transaksi: buat/update tim + assign ke pool + generate match.
-    // autoAssignToPool mengunci baris turnamen (FOR UPDATE) sehingga aman
-    // saat banyak pendaftaran berbarengan.
+    // Satu transaksi: buat/update tim. Penempatan ke pool dilakukan
+    // panitia setelah TM/pengundian via halaman kelola pool.
     await prisma.$transaction(async (tx) => {
       if (matchType !== 'SINGLE') {
         const team = await tx.team.create({
@@ -81,7 +77,6 @@ export async function processTeamRegistration(prevState: unknown, formData: Form
             tournamentId,
           }
         })
-        teamIdToUse = team.id
 
         await tx.player.update({
           where: { id: p1.id },
@@ -99,22 +94,6 @@ export async function processTeamRegistration(prevState: unknown, formData: Form
           where: { id: p1.id },
           data: { grade, matchType }
         })
-      }
-
-      // Assign to Pool di dalam transaksi yang sama
-      const assignOptions = matchType === 'SINGLE' ? { playerId: p1.id } : { teamId: teamIdToUse! }
-      const resPool = await autoAssignToPool(
-        tx,
-        tournamentId,
-        categoryInfo,
-        memberNameToUse,
-        tournament.poolSize,
-        assignOptions
-      )
-
-      // Auto-generate pool matches jika pool mencapai FULL
-      if (resPool.pool.status === 'FULL') {
-        await generatePoolMatches(tx, resPool.pool.id)
       }
     })
   } catch (error: unknown) {

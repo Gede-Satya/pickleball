@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { showWarning, showInfo, showConfirm } from "@/lib/swal";
 import dynamic from "next/dynamic";
 import { KnockoutMatch } from "./BracketClient"; // Will add type export soon
+import { displayParticipantName, slotTokenToLabel } from "@/lib/bracketSlot";
 
 // Gunakan dynamic import karena lib ini sering error kalau di render di server
 const SingleEliminationBracket = dynamic(
@@ -45,14 +46,14 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
           resultText: m.score1 !== null ? String(m.score1) : null,
           isWinner: (m.status === "DONE" && m.winnerName === m.player1Name) ? ("true" as any) : undefined,
           status: null,
-          name: m.player1Name || "TBD",
+          name: displayParticipantName(m.player1Name) || "TBD",
         },
         {
           id: `p2-${m.id}`,
           resultText: m.score2 !== null ? String(m.score2) : null,
           isWinner: (m.status === "DONE" && m.winnerName === m.player2Name) ? ("true" as any) : undefined,
           status: null,
-          name: m.player2Name || "TBD",
+          name: displayParticipantName(m.player2Name) || "TBD",
         },
       ],
     };
@@ -81,9 +82,11 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
        return;
     }
     
-    // Boleh isi skor kalau kedua pemain sudah jelas (bukan TBD/null)
-    if (!match.originalMatch.player1Name || !match.originalMatch.player2Name) {
-        showWarning("Kedua pemain belum ditentukan. Selesaikan match sebelumnya untuk mengisi slot ini.");
+    // Boleh isi skor kalau kedua pemain sudah jelas (bukan TBD/null/slot token)
+    const p1Unset = !match.originalMatch.player1Name || slotTokenToLabel(match.originalMatch.player1Name) !== null;
+    const p2Unset = !match.originalMatch.player2Name || slotTokenToLabel(match.originalMatch.player2Name) !== null;
+    if (p1Unset || p2Unset) {
+        showWarning("Kedua pemain belum ditentukan. Selesaikan fase grup agar peringkat pool mengisi slot ini.");
         return;
     }
 

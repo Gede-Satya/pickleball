@@ -13,7 +13,7 @@ const banners = [
     titleHighlight: "Pickleball Denpasar",
     desc: "Temukan berita terbaru, jadwal turnamen, dan tips seputar dunia Pickleball di Kota Denpasar.",
     image: "/img/fotoPeserta.jpg",
-    bgGradient: "from-yellow-400 via-slate-900 to-slate-900",
+    bgGradient: "from-yellow-400 via-[#0F172A] to-[#0F172A]",
   },
   {
     id: 2,
@@ -22,7 +22,7 @@ const banners = [
     titleHighlight: "Kejuaraan Nasional",
     desc: "Pendaftaran untuk turnamen terbesar tahun ini segera dibuka. Rebut total hadiah puluhan juta rupiah!",
     image: "/img/juaraUmum.png",
-    bgGradient: "from-blue-500 via-slate-900 to-slate-900",
+    bgGradient: "from-blue-500 via-[#0F172A] to-[#0F172A]",
   },
   {
     id: 3,
@@ -31,7 +31,7 @@ const banners = [
     titleHighlight: "Keluarga IPF",
     desc: "Tingkatkan skill, tambah teman baru, dan nikmati keseruan olahraga dengan pertumbuhan tercepat di dunia.",
     image: "/img/panitia.jpg",
-    bgGradient: "from-emerald-500 via-slate-900 to-slate-900",
+    bgGradient: "from-emerald-500 via-[#0F172A] to-[#0F172A]",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function BannerSlider() {
   }, []);
 
   return (
-    <section className="relative bg-slate-900 text-white overflow-hidden h-[85vh] min-h-[500px]">
+    <section className="relative bg-[#0F172A] text-[#ffffff] overflow-hidden h-[85vh] min-h-[500px]">
       <div
         className="flex w-full h-full transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${currentSlide * 100}%)` }}
@@ -56,7 +56,7 @@ export default function BannerSlider() {
             <Image src={banner.image} alt={banner.title} fill priority={banner.id === 1} className="object-cover" />
             <div className="absolute inset-0 bg-black/50 z-10"></div>
             <div className="relative z-20 max-w-4xl mx-auto flex flex-col items-center mt-[-5%]">
-              <span className="px-4 py-1.5 bg-yellow-400 text-slate-900 font-bold tracking-wider rounded-full text-xs uppercase mb-6">
+              <span className="px-4 py-1.5 bg-yellow-400 text-[#0F172A] font-bold tracking-wider rounded-full text-xs uppercase mb-6">
                 {banner.tag}
               </span>
               <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight leading-tight">
@@ -65,11 +65,11 @@ export default function BannerSlider() {
                   {banner.titleHighlight}
                 </span>
               </h1>
-              <p className="text-lg md:text-xl text-slate-100 max-w-2xl mb-10 leading-relaxed font-medium">
+              <p className="text-lg md:text-xl text-[#e2e8f0] max-w-2xl mb-10 leading-relaxed font-medium">
                 {banner.desc}
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <Link href="/tournament" className="px-8 py-3 bg-yellow-400 text-slate-900 font-bold rounded-full hover:bg-yellow-300 transition shadow-lg shadow-yellow-400/20">
+                <Link href="/tournament" className="px-8 py-3 bg-yellow-400 text-[#0F172A] font-bold rounded-full hover:bg-yellow-300 transition shadow-lg shadow-yellow-400/20">
                   Lihat Turnamen
                 </Link>
               </div>
@@ -84,7 +84,7 @@ export default function BannerSlider() {
             key={index}
             onClick={() => setCurrentSlide(index)}
             className={`h-2.5 rounded-full transition-all duration-300 ${
-              currentSlide === index ? `w-10 bg-yellow-400` : "w-2.5 bg-white/40 hover:bg-white/70"
+              currentSlide === index ? `w-10 bg-yellow-400` : "w-2.5 bg-[rgba(255,255,255,0.4)] hover:bg-[rgba(255,255,255,0.7)]"
             }`}
           />
         ))}

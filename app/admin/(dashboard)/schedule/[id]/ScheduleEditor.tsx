@@ -130,7 +130,7 @@ export default function ScheduleEditor({
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="w-full md:w-auto px-6 py-2.5 bg-yellow-400 hover:bg-yellow-500 disabled:bg-slate-300 text-slate-900 font-bold rounded-xl transition-all active:scale-95"
+          className="w-full md:w-auto px-6 py-2.5 bg-yellow-400 hover:bg-yellow-500 disabled:bg-slate-300 text-[#0F172A] font-bold rounded-xl transition-all active:scale-95"
         >
           {isSaving ? "Menyimpan..." : "💾 Simpan Semua"}
         </button>

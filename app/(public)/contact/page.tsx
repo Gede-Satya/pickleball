@@ -53,7 +53,7 @@ const Contact: React.FC = () => {
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
         
         {/* Sisi Kiri: Informasi Kontak */}
-        <div className="bg-slate-900 text-white p-8 md:p-12 md:w-2/5 flex flex-col justify-center">
+        <div className="bg-[#0F172A] text-[#ffffff] p-8 md:p-12 md:w-2/5 flex flex-col justify-center">
           <h2 className="text-3xl font-bold mb-4">Mari Berbincang!</h2>
           <p className="text-slate-400 mb-8 leading-relaxed">
             Punya pertanyaan, ide, atau proyek menarik? Jangan ragu untuk menghubungi kami. Kami akan membalas secepatnya.
@@ -61,18 +61,18 @@ const Contact: React.FC = () => {
           
           <div className="space-y-6">
             <div>
-              <span className="block text-slate-300 font-semibold mb-1">📧 Email</span>
-              <a href="mailto:halo@perusahaananda.com" className="text-white hover:text-blue-400 transition-colors">
+              <span className="block text-[#cbd5e1] font-semibold mb-1">📧 Email</span>
+              <a href="mailto:halo@perusahaananda.com" className="text-[#ffffff] hover:text-blue-400 transition-colors">
                 halo@perusahaananda.com
               </a>
             </div>
             <div>
-              <span className="block text-slate-300 font-semibold mb-1">📞 Telepon / WhatsApp</span>
-              <p className="text-white">+62 812 3456 7890</p>
+              <span className="block text-[#cbd5e1] font-semibold mb-1">📞 Telepon / WhatsApp</span>
+              <p className="text-[#ffffff]">+62 812 3456 7890</p>
             </div>
             <div>
-              <span className="block text-slate-300 font-semibold mb-1">📍 Alamat Kantor</span>
-              <p className="text-white leading-relaxed">
+              <span className="block text-[#cbd5e1] font-semibold mb-1">📍 Alamat Kantor</span>
+              <p className="text-[#ffffff] leading-relaxed">
                 Jl. Sudirman No. 123, Jakarta Selatan<br />Indonesia, 12190
               </p>
             </div>
@@ -129,7 +129,7 @@ const Contact: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`w-full py-3 px-4 rounded-lg text-white font-bold text-lg transition-all ${
+              className={`w-full py-3 px-4 rounded-lg text-[#ffffff] font-bold text-lg transition-all ${
                 isSubmitting 
                   ? 'bg-slate-400 cursor-not-allowed' 
                   : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg active:scale-[0.98]'
