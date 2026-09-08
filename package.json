@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test:smoke": "k6 run load-test-smoke.js",
     "test:load": "k6 run load-test.js",
+    "backup:db": "node scripts/backup-db.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {

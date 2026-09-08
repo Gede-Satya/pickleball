@@ -49,6 +49,7 @@ next-env.d.ts
 /public/uploads/
 /prisma/generated/
 /backup_pickleball.sql
+/backups/
 dev.log*
 server.log*
 server-err.log*
