@@ -1,12 +1,10 @@
 // app/admin/clubs/actions.ts
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdminAction } from '@/lib/requireAdmin'
-
-const prisma = new PrismaClient()
 
 // Fungsi Tambah Klub
 export async function createClub(formData: FormData) {

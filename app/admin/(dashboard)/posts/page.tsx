@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import DeleteButton from "./DeleteButton";
-const prisma = new PrismaClient();
 
 export default async function PostsPage() {
   // Ambil semua post, urutkan dari yang terbaru

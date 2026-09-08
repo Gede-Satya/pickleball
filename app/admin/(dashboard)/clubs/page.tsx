@@ -1,9 +1,7 @@
 // app/admin/clubs/page.tsx
 import Link from "next/link";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import DeleteClubButton from "./DeleteClubButton";
-
-const prisma = new PrismaClient();
 
 export default async function AdminClubsPage() {
   const clubs = await prisma.club.findMany({

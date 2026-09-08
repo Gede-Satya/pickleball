@@ -1,8 +1,6 @@
 // app/(public)/articles/page.tsx
 import Link from "next/link";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export default async function PublicArticlesPage() {
   // 1. Ambil semua artikel yang sudah dipublish dari database

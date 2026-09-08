@@ -1,9 +1,7 @@
 // /api/tournaments/[id]/brackets/members/route.ts
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/requireAdmin";
-
-const prisma = new PrismaClient();
 
 // POST: Tambah member ke grup
 export async function POST(

@@ -1,10 +1,8 @@
 // app/admin/clubs/[id]/edit/page.tsx
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { updateClub } from "../action";
-
-const prisma = new PrismaClient();
 
 export default async function EditClubPage({
   params,

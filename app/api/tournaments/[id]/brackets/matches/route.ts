@@ -1,10 +1,8 @@
 // /api/tournaments/[id]/brackets/matches/route.ts
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { verifyRefereeAccess } from "@/lib/refereeAuth";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/requireAdmin";
-
-const prisma = new PrismaClient();
 
 // POST: Generate round-robin matches untuk sebuah grup
 export async function POST(

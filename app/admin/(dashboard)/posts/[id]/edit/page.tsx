@@ -1,9 +1,7 @@
 // app/admin/posts/[id]/edit/page.tsx
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import EditPostForm from "./EditPostForm"; // Kita akan buat file ini di Langkah 3
-
-const prisma = new PrismaClient();
 
 export default async function EditPostPage({
   params,

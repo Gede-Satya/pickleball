@@ -1,11 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import DeleteBannerButton from "./DeleteBannerButton";
 import ToggleBannerButton from "./ToggleBannerButton";
-
-const prisma = new PrismaClient();
 
 export default function BannersPage() {
   return (

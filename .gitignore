@@ -51,5 +51,6 @@ next-env.d.ts
 /backup_pickleball.sql
 /backups/
 dev.log*
+dev-err.log*
 server.log*
 server-err.log*

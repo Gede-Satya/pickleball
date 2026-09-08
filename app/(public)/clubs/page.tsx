@@ -1,7 +1,5 @@
 // app/(public)/clubs/page.tsx
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export default async function PublicClubsPage() {
   // Ambil semua data klub dari database, urutkan berdasarkan nama (A-Z)

@@ -1,9 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { publicTournamentSelect } from '@/lib/publicTournamentSelect';
 import TournamentClient from './TournamentClient'; // Import komponen yang baru kita buat
-
-
-const prisma = new PrismaClient();
 
 
 export default async function TournamentPage() {

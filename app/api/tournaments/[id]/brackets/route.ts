@@ -1,9 +1,7 @@
 // /api/tournaments/[id]/brackets/route.ts
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/requireAdmin";
-
-const prisma = new PrismaClient();
 
 // GET: Ambil semua grup + member + match untuk turnamen tertentu
 export async function GET(
