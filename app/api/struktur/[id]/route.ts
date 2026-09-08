@@ -63,10 +63,12 @@ export async function DELETE(
     await prisma.orgStructure.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Gagal menghapus struktur:", error);
+    const message =
+      error instanceof Error ? error.message : "Gagal menghapus data struktur";
     return NextResponse.json(
-      { error: error.message || "Gagal menghapus data struktur" },
+      { error: message },
       { status: 500 }
     );
   }

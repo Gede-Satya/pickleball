@@ -3,55 +3,83 @@
 import React, { useState } from "react";
 import { showWarning, showInfo, showConfirm } from "@/lib/swal";
 import dynamic from "next/dynamic";
-import { KnockoutMatch } from "./BracketClient"; // Will add type export soon
+import type { KnockoutMatch } from "./BracketClient";
 import { displayParticipantName, slotTokenToLabel } from "@/lib/bracketSlot";
+import type {
+  MatchComponentProps,
+  MatchType,
+  ParticipantType,
+  SingleElimLeaderboardProps,
+} from "@g-loot/react-tournament-brackets/dist/cjs/types";
 
 // Gunakan dynamic import karena lib ini sering error kalau di render di server
 const SingleEliminationBracket = dynamic(
-  // @ts-ignore
-  () => import("@g-loot/react-tournament-brackets").then((mod) => mod.SingleEliminationBracket),
-  { ssr: false }
+  () =>
+    import("@g-loot/react-tournament-brackets").then(
+      (mod) => mod.SingleEliminationBracket as unknown as React.ComponentType<SingleElimLeaderboardProps>
+    )
 );
 
-const Match = dynamic(
-  // @ts-ignore
-  () => import("@g-loot/react-tournament-brackets").then((mod) => mod.Match),
-  { ssr: false }
+const Match = dynamic<MatchComponentProps>(
+  () =>
+    import("@g-loot/react-tournament-brackets").then(
+      (mod) => mod.Match as unknown as React.ComponentType<MatchComponentProps>
+    )
 );
 
 interface Props {
-  matches: any[];
+  matches: KnockoutMatch[];
   onUpdateScore?: (matchId: number, score1: string, score2: string) => void;
   onResetMatch?: (matchId: number) => void;
   onEditName?: (matchId: number, pNum: 1 | 2, currentName: string) => void;
 }
 
+type MappedParticipant = {
+  id: string;
+  resultText: string | null;
+  isWinner?: boolean;
+  status: null;
+  name: string;
+};
+
+type MappedMatch = {
+  id: number;
+  name: string;
+  nextMatchId: number | null;
+  tournamentRoundText: string;
+  startTime: string;
+  state: "DONE" | "SCHEDULED";
+  originalMatch: KnockoutMatch;
+  participants: MappedParticipant[];
+};
+
 export default function KnockoutBracketRender({ matches, onUpdateScore, onResetMatch, onEditName }: Props) {
-  const [activeMatch, setActiveMatch] = useState<any>(null);
+  const [activeMatch, setActiveMatch] = useState<MappedMatch | null>(null);
   const [tempScore1, setTempScore1] = useState("");
   const [tempScore2, setTempScore2] = useState("");
 
   // Map db matches to g-loot bracket format
-  const mappedMatches = matches.map((m) => {
+  const mappedMatches: MappedMatch[] = matches.map((m) => {
     return {
       id: m.id,
       name: m.roundText,
       nextMatchId: m.nextMatchId,
       tournamentRoundText: m.roundText,
+      startTime: "",
       state: m.status === "DONE" ? "DONE" : "SCHEDULED",
-      originalMatch: m, // simpan data aslinya
+      originalMatch: m,
       participants: [
         {
           id: `p1-${m.id}`,
           resultText: m.score1 !== null ? String(m.score1) : null,
-          isWinner: (m.status === "DONE" && m.winnerName === m.player1Name) ? ("true" as any) : undefined,
+          isWinner: m.status === "DONE" && m.winnerName === m.player1Name,
           status: null,
           name: displayParticipantName(m.player1Name),
         },
         {
           id: `p2-${m.id}`,
           resultText: m.score2 !== null ? String(m.score2) : null,
-          isWinner: (m.status === "DONE" && m.winnerName === m.player2Name) ? ("true" as any) : undefined,
+          isWinner: m.status === "DONE" && m.winnerName === m.player2Name,
           status: null,
           name: displayParticipantName(m.player2Name),
         },
@@ -59,32 +87,31 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
     };
   });
 
-  const handleMatchClick = (params: any) => {
+  const handleMatchClick = ({ match }: { match: MatchType; topWon: boolean; bottomWon: boolean }) => {
     // Kalau no-op (seperti di halaman publik read-only), hentikan interaksi
     if (!onResetMatch || !onUpdateScore) return;
 
-    // Library me-return parameter dalam format { match: {...} } atau sekadar {...}
-    const clickedMatch = params?.match || params;
+    const clickedMatch = match;
     if (!clickedMatch || !clickedMatch.id) return;
 
     // Library sering kali membuang properti custom (originalMatch), cari manual pakai ID
-    const match = mappedMatches.find((m) => String(m.id) === String(clickedMatch.id));
-    if (!match) return;
+    const matchData = mappedMatches.find((m) => String(m.id) === String(clickedMatch.id));
+    if (!matchData) return;
 
-    if (match.state === "DONE") {
+    if (matchData.state === "DONE") {
        showConfirm(
-         `Skor saat ini ${match.originalMatch.score1} - ${match.originalMatch.score2}. Reset pertandingan ini?`,
+         `Skor saat ini ${matchData.originalMatch.score1} - ${matchData.originalMatch.score2}. Reset pertandingan ini?`,
          'Reset Pertandingan?',
          'Ya, Reset!'
        ).then((confirmed) => {
-         if (confirmed) onResetMatch?.(match.id);
+         if (confirmed) onResetMatch?.(matchData.id);
        });
        return;
     }
     
     // Boleh isi skor kalau kedua pemain sudah jelas (bukan Menunggu/null/slot token)
-    const p1Unset = !match.originalMatch.player1Name || slotTokenToLabel(match.originalMatch.player1Name) !== null;
-    const p2Unset = !match.originalMatch.player2Name || slotTokenToLabel(match.originalMatch.player2Name) !== null;
+    const p1Unset = !matchData.originalMatch.player1Name || slotTokenToLabel(matchData.originalMatch.player1Name) !== null;
+    const p2Unset = !matchData.originalMatch.player2Name || slotTokenToLabel(matchData.originalMatch.player2Name) !== null;
     if (p1Unset || p2Unset) {
         showWarning("Peserta belum lengkap. Nama akan terisi otomatis setelah fase grup selesai.");
         return;
@@ -92,41 +119,32 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
 
     // Jika salah satu BYE, ini anomali (karena sistem otomatis mengisi kemenangan bye), 
     // tapi kalau terjadi, cegah edit skor
-    if (match.originalMatch.player1Name === "BYE" || match.originalMatch.player2Name === "BYE") {
+    if (matchData.originalMatch.player1Name === "BYE" || matchData.originalMatch.player2Name === "BYE") {
         showInfo("Peserta ini mendapat BYE (langsung lolos).", "Info Pertandingan");
         return;
     }
 
-    setActiveMatch(match);
+    setActiveMatch(matchData);
     setTempScore1("");
     setTempScore2("");
   };
 
-const handleEditName = (matchId: number, pNum: 1|2, name: string) => {
-    if (onEditName) {
-        onEditName(matchId, pNum, name === "Menunggu" ? "" : name);
-    }
-};
-
- // 1. Definisikan komponen sebagai 'any' di sini untuk mematikan pengecekan TS di JSX
-  const BracketComponent = SingleEliminationBracket as any;
+ // 1. Definisikan komponen sebagai tipe bracket agar tidak error di JSX
+  const BracketComponent = SingleEliminationBracket as unknown as React.ComponentType<SingleElimLeaderboardProps>;
 
   return (
     <div className="bracket-wrapper w-full">
       {/* 2. Panggil BracketComponent, bukan SingleEliminationBracket */}
       <BracketComponent
         matches={mappedMatches}
-        matchComponent={({ hovered, topHovered, bottomHovered, ...props }: any) => {
-           // Bersihkan SEMUA properti hover agar atribut boolean ini tidak bocor ke elemen DOM TheMatch
-           return <Match {...props} />
-        }}
-        svgWrapper={({ children, hovered, bracketWidth, bracketHeight, startAt, ...props }: any) => (
-          <div {...props}>
+        matchComponent={(props) => <Match {...props} />}
+        svgWrapper={({ children }: { children: React.ReactNode }) => (
+          <div>
             {children}
           </div>
         )}
         onMatchClick={handleMatchClick}
-        onPartyClick={(party: any) => {
+        onPartyClick={(party: ParticipantType) => {
            if (!onEditName) return;
 
            // Library sering kali menghilangkan properti custom seperti originalMatch,
@@ -134,7 +152,7 @@ const handleEditName = (matchId: number, pNum: 1|2, name: string) => {
            const foundMatch = mappedMatches.find(m => m.participants.some(p => p.id === party.id));
            if (foundMatch) {
                const isP1 = foundMatch.participants[0].id === party.id ? 1 : 2;
-               onEditName(foundMatch.id, isP1, party.name);
+               onEditName(foundMatch.id, isP1, party.name ?? "");
            }
         }}
       />

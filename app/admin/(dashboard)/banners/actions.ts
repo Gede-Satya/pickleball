@@ -4,6 +4,7 @@
 import { PrismaClient } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { requireAdminAction } from '@/lib/requireAdmin'
 
 const prisma = new PrismaClient()
 
@@ -29,6 +30,7 @@ function refreshPaths() {
 }
 
 export async function createBanner(formData: FormData) {
+  await requireAdminAction();
   const data = readBannerFields(formData)
   if (!data.title || !data.image) return
 
@@ -39,6 +41,7 @@ export async function createBanner(formData: FormData) {
 }
 
 export async function updateBanner(id: number, formData: FormData) {
+  await requireAdminAction();
   const data = readBannerFields(formData)
   if (!data.title || !data.image) return
 
@@ -49,11 +52,13 @@ export async function updateBanner(id: number, formData: FormData) {
 }
 
 export async function deleteBanner(id: number) {
+  await requireAdminAction();
   await prisma.banner.delete({ where: { id } })
   refreshPaths()
 }
 
 export async function toggleBanner(id: number, active: boolean) {
+  await requireAdminAction();
   await prisma.banner.update({ where: { id }, data: { active } })
   refreshPaths()
 }

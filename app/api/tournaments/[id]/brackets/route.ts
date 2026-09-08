@@ -24,8 +24,22 @@ export async function GET(
     });
 
     // Ambil juga daftar pemain turnamen (untuk assign ke grup)
+    // select: buang data sensitif (phoneNumber, status pembayaran, bukti bayar)
     const players = await prisma.player.findMany({
       where: { tournamentId },
+      select: {
+        id: true,
+        fullName: true,
+        schoolName: true,
+        gender: true,
+        grade: true,
+        matchType: true,
+        tournamentId: true,
+        seedOrder: true,
+        teamId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { seedOrder: "asc" },
     });
 
@@ -94,6 +108,14 @@ export async function DELETE(
 
     if (!groupId) {
       return errorResponse("groupId wajib diisi ⚠️", 400, "BAD_REQUEST");
+    }
+
+    // Pastikan grup milik turnamen pada URL (scoping IDOR)
+    const group = await prisma.tournamentGroup.findUnique({
+      where: { id: Number(groupId) },
+    });
+    if (!group || group.tournamentId !== Number(id)) {
+      return errorResponse("Grup tidak ditemukan pada turnamen ini 🔍", 404, "NOT_FOUND");
     }
 
     await prisma.tournamentGroup.delete({

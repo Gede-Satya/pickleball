@@ -6,6 +6,23 @@ import { updateTournament } from "./actions";
 import { showError } from "@/lib/swal";
 import GradePicker from "@/components/GradePicker";
 import { parseTournamentGrades } from "@/lib/tournamentGrades";
+type TournamentEditData = {
+  id: number | string;
+  name: string;
+  category: string;
+  description: string | null;
+  location: string | null;
+  image: string | null;
+  startDate: string | Date | null;
+  endDate: string | Date | null;
+  registrationFee: number;
+  maxParticipants: number | null;
+  status: string;
+  gradeOptions: string | null;
+  refereeCode: string | null;
+  isCodeActive: boolean;
+};
+
 export default function EditTournamentPage({
   params,
 }: {
@@ -15,7 +32,7 @@ export default function EditTournamentPage({
   const id = resolvedParams.id;
 
   // State Management
-  const [tournament, setTournament] = useState<any>(null);
+  const [tournament, setTournament] = useState<TournamentEditData | null>(null);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
@@ -167,7 +184,7 @@ const formattedEndDate = tournament?.endDate
                 id="location"
                 name="location"
                 required
-                defaultValue={tournament.location}
+                defaultValue={tournament.location || ""}
                 className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
                 placeholder="Contoh: GOR Soemantri Brodjonegoro"
               />
@@ -220,7 +237,7 @@ const formattedEndDate = tournament?.endDate
                 id="maxParticipants" 
                 name="maxParticipants" 
                 required 
-                defaultValue={tournament.maxParticipants}
+                defaultValue={tournament.maxParticipants ?? ""}
                 min="2" 
                 placeholder="Contoh: 32"
                 className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" 

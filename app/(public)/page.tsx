@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PrismaClient } from "@prisma/client";
 // Panggil komponen slider yang tadi kita pisah:
 import BannerSlider from "@/components/BannerSlider"; // Sesuaikan path-nya jika beda folder
+import { publicTournamentSelect } from "@/lib/publicTournamentSelect";
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,7 @@ export default async function HomePage() {
         deletedAt: null,
         status: { in: ["UPCOMING", "ONGOING"] },
       },
+      select: publicTournamentSelect,
       orderBy: { startDate: "asc" },
       take: 3,
     }),

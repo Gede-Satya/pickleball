@@ -5,6 +5,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { errorResponse } from "@/lib/apiResponse";
+import { redirect } from "next/navigation";
 
 const ADMIN_ROLES = new Set<string>(["SUPER_ADMIN", "ADMIN", "MATCH_ADMIN"]);
 
@@ -18,6 +19,15 @@ export async function requireAdminSession() {
   const role = (session?.user as { role?: string } | undefined)?.role;
   if (!role || !ADMIN_ROLES.has(role)) return null;
   return session;
+}
+
+/**
+ * Guard server actions admin (defense-in-depth di samping middleware proxy).
+ * Melempar redirect ke /admin/login jika tidak punya sesi admin.
+ */
+export async function requireAdminAction() {
+  const session = await requireAdminSession();
+  if (!session) redirect("/admin/login");
 }
 
 /**

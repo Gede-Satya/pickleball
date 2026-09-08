@@ -6,38 +6,62 @@ const errorRate = new Rate('errors');
 
 export const options = {
   stages: [
-    { duration: '30s', target: 20 },   // realistis dulu
+    { duration: '30s', target: 20 },   // warm-up
     { duration: '1m', target: 50 },
     { duration: '2m', target: 100 },
     { duration: '30s', target: 0 },
   ],
   thresholds: {
-    http_req_duration: ['p(95)<800'],  // 2000ms terlalu longgar untuk UX yang baik
+    http_req_duration: ['p(95)<800'],
     http_req_failed: ['rate<0.01'],
     errors: ['rate<0.01'],
   },
 };
 
-const TOURNAMENT_ID = '1';
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000'; // biar bisa ganti tanpa edit file
+const TOURNAMENT_ID = __ENV.TOURNAMENT_ID || '1';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
+
+// Skenario berbobot: halaman publik (20%) + API baca (80%)
+const endpoints = [
+  // ---- Halaman publik (20%) ----
+  { name: 'page_home', url: `${BASE_URL}/`, weight: 5 },
+  { name: 'page_tournament', url: `${BASE_URL}/tournament/${TOURNAMENT_ID}`, weight: 5 },
+  { name: 'page_schedule', url: `${BASE_URL}/tournament/${TOURNAMENT_ID}/schedule`, weight: 5 },
+  { name: 'page_bracket', url: `${BASE_URL}/tournament/${TOURNAMENT_ID}/bracket`, weight: 5 },
+
+  // ---- API baca (80%) ----
+  { name: 'api_health', url: `${BASE_URL}/api/health`, weight: 10 },
+  { name: 'api_bank_accounts', url: `${BASE_URL}/api/public/bank-accounts`, weight: 10 },
+  { name: 'api_payment_methods', url: `${BASE_URL}/api/public/payment-methods`, weight: 10 },
+  { name: 'api_tournament', url: `${BASE_URL}/api/tournaments/${TOURNAMENT_ID}`, weight: 20 },
+  { name: 'api_pools', url: `${BASE_URL}/api/tournaments/${TOURNAMENT_ID}/pools`, weight: 15 },
+  { name: 'api_brackets', url: `${BASE_URL}/api/tournaments/${TOURNAMENT_ID}/brackets`, weight: 15 },
+];
+
+const totalWeight = endpoints.reduce((sum, e) => sum + e.weight, 0);
+
+function pickEndpoint() {
+  let r = Math.random() * totalWeight;
+  for (const e of endpoints) {
+    r -= e.weight;
+    if (r <= 0) return e;
+  }
+  return endpoints[endpoints.length - 1];
+}
+
+function isPage(ep) {
+  return ep.name.startsWith('page_');
+}
 
 export default function () {
-  const pages = [
-    { name: 'homepage', url: `${BASE_URL}/` },
-    { name: 'tournament_detail', url: `${BASE_URL}/tournament/${TOURNAMENT_ID}` },
-    { name: 'jadwal', url: `${BASE_URL}/tournament/${TOURNAMENT_ID}/jadwal` },
-    { name: 'bagan', url: `${BASE_URL}/tournament/${TOURNAMENT_ID}/bracket` },
-  ];
-
-  const page = pages[Math.floor(Math.random() * pages.length)];
-  const res = http.get(page.url, { tags: { name: page.name } });
+  const ep = pickEndpoint();
+  const res = http.get(ep.url, { tags: { name: ep.name } });
 
   const ok = check(res, {
-    [`${page.name} status 200`]: (r) => r.status === 200,
-    [`${page.name} < 800ms`]: (r) => r.timings.duration < 800,
+    [`${ep.name} status 200`]: (r) => r.status === 200,
+    [`${ep.name} < 800ms`]: (r) => r.timings.duration < 800,
   });
 
-  if (!ok) errorRate.add(1);
-
-  sleep(Math.random() * 3);
+  errorRate.add(!ok);
+  sleep(isPage(ep) ? Math.random() * 3 : Math.random());
 }

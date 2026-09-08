@@ -6,7 +6,14 @@ import Link from "next/link";
 import { updatePost } from "../../actions";
 import { showError } from "@/lib/swal";
 
-export default function EditPostForm({ post }: { post: any }) {
+type PostFormData = {
+  id: string | number;
+  title: string;
+  content: string;
+  image: string | null;
+};
+
+export default function EditPostForm({ post }: { post: PostFormData }) {
   const [imageUrl, setImageUrl] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
 

@@ -306,7 +306,7 @@ function OrgTree({
 }: {
   nodes: OrgTreeCustomNode[];
   onAddChild: (parentId: string) => void;
-  onEdit: (item: any) => void;
+  onEdit: (item: FlatItem) => void;
   onDelete: (id: string) => void;
 }) {
   return (

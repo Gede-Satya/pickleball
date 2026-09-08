@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { categoryKeyToLabel } from '@/lib/categoryLabel'
 import { revalidateTag, cacheLife, cacheTag } from 'next/cache'
-import type { Prisma } from '@prisma/client'
+import type { MatchStatus, Prisma } from '@prisma/client'
 
 export type MatchType = 'pool' | 'knockout' | 'group'
 
@@ -29,7 +29,7 @@ export type UnifiedMatch = {
 export type MatchFilters = {
   tournamentId?: number
   category?: string
-  status?: string
+  status?: MatchStatus
   matchType?: MatchType
   search?: string
 }
@@ -45,7 +45,7 @@ export async function fetchAllMatches(filters: MatchFilters = {}): Promise<Unifi
   const wantGroup = !filters.matchType || filters.matchType === 'group'
 
   const poolWhere: Prisma.PoolMatchWhereInput = {
-    ...(filters.status && { status: filters.status as any }),
+    ...(filters.status && { status: filters.status }),
     pool: {
       ...(filters.tournamentId && { tournamentId: filters.tournamentId }),
       ...(filters.category && { categoryKey: filters.category }),
@@ -61,7 +61,7 @@ export async function fetchAllMatches(filters: MatchFilters = {}): Promise<Unifi
   const knockoutWhere: Prisma.KnockoutMatchWhereInput = {
     ...(filters.tournamentId && { tournamentId: filters.tournamentId }),
     ...(filters.category && { category: filters.category }),
-    ...(filters.status && { status: filters.status as any }),
+    ...(filters.status && { status: filters.status }),
     ...(filters.search && {
       OR: [
         { player1Name: { contains: filters.search } },
@@ -71,7 +71,7 @@ export async function fetchAllMatches(filters: MatchFilters = {}): Promise<Unifi
   }
 
   const groupWhere: Prisma.GroupMatchWhereInput = {
-    ...(filters.status && { status: filters.status as any }),
+    ...(filters.status && { status: filters.status }),
     group: {
       ...(filters.tournamentId && { tournamentId: filters.tournamentId }),
       ...(filters.category && { category: filters.category }),

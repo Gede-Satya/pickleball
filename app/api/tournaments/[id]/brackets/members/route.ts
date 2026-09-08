@@ -11,6 +11,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   await params; // consume params
+  const { id } = await params;
 
   if (!(await requireAdminSession())) return unauthorizedResponse();
 
@@ -20,6 +21,14 @@ export async function POST(
 
     if (!groupId || !playerName) {
       return errorResponse("groupId dan playerName wajib diisi ⚠️", 400, "BAD_REQUEST");
+    }
+
+    // Pastikan grup milik turnamen pada URL (scoping IDOR)
+    const group = await prisma.tournamentGroup.findUnique({
+      where: { id: Number(groupId) },
+    });
+    if (!group || group.tournamentId !== Number(id)) {
+      return errorResponse("Grup tidak ditemukan pada turnamen ini 🔍", 404, "NOT_FOUND");
     }
 
     // Cek apakah pemain sudah ada di grup ini
@@ -55,6 +64,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   await params;
+  const { id } = await params;
 
   if (!(await requireAdminSession())) return unauthorizedResponse();
 
@@ -64,6 +74,15 @@ export async function DELETE(
 
     if (!memberId) {
       return errorResponse("memberId wajib diisi ⚠️", 400, "BAD_REQUEST");
+    }
+
+    // Pastikan member berada di grup milik turnamen pada URL (scoping IDOR)
+    const existingMember = await prisma.groupMember.findUnique({
+      where: { id: Number(memberId) },
+      include: { group: true },
+    });
+    if (!existingMember || existingMember.group.tournamentId !== Number(id)) {
+      return errorResponse("Member tidak ditemukan pada turnamen ini 🔍", 404, "NOT_FOUND");
     }
 
     await prisma.groupMember.delete({
@@ -83,6 +102,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   await params;
+  const { id } = await params;
 
   if (!(await requireAdminSession())) return unauthorizedResponse();
 
@@ -92,6 +112,19 @@ export async function PUT(
 
     if (!members || !Array.isArray(members)) {
       return errorResponse("Format data members tidak valid ⚠️", 400, "BAD_REQUEST");
+    }
+
+    // Pastikan semua member berada di grup milik turnamen pada URL (scoping IDOR)
+    const memberIds = members.map((m) => Number(m.id));
+    const memberRows = await prisma.groupMember.findMany({
+      where: { id: { in: memberIds } },
+      include: { group: true },
+    });
+    if (
+      memberRows.length !== memberIds.length ||
+      memberRows.some((m) => m.group.tournamentId !== Number(id))
+    ) {
+      return errorResponse("Beberapa member tidak ditemukan pada turnamen ini 🔍", 404, "NOT_FOUND");
     }
 
     // Update seed order untuk semua member sekaligus

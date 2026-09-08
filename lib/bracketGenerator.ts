@@ -10,7 +10,8 @@
  * ============================================================
  */
 
-import { PrismaClient } from "@prisma/client";
+import type { KnockoutMatch } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 
 // ----------------------------------------------------------------
 // BRACKET MATH HELPERS
@@ -79,7 +80,7 @@ export async function buildBracket(
   tournamentId: number,
   categoryKey: string,
   prisma: PrismaClient
-): Promise<any[]> {
+): Promise<KnockoutMatch[]> {
   if (seededNames.length < 2) {
     throw new Error("Minimal 2 peserta diperlukan untuk membuat bracket");
   }
@@ -194,7 +195,7 @@ export async function buildBracket(
           score1: mData.score1,
           score2: mData.score2,
           winnerName: mData.winnerName,
-          status: mData.status as any,
+          status: mData.status as "SCHEDULED" | "ONGOING" | "DONE",
           roundText: mData.roundText,
           matchOrder: mData.matchOrder,
           nextMatchId,

@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/admin/clubs', icon: '🛡️', label: 'Daftar Club', roles: ['SUPER_ADMIN', 'ADMIN'] },
   { href: '/admin/struktur', icon: '🌳', label: 'Struktur Organisasi', roles: ['SUPER_ADMIN', 'ADMIN'] },
   { href: '/admin/wasit-log', icon: '🏁', label: 'Log Wasit' },
+  { href: '/admin/contact', icon: '📨', label: 'Pesan Kontak' },
 ]
 
 const SUPER_ADMIN_ITEMS = [

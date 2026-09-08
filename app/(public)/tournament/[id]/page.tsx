@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { publicTournamentSelect } from "@/lib/publicTournamentSelect";
 import RegistrationModal from "./RegistrationModal"; // Import modal yang kita buat
 
 export default async function TournamentDetailPage({
@@ -15,6 +16,7 @@ export default async function TournamentDetailPage({
   // Ambil detail turnamen
   const tournament = await prisma.tournament.findUnique({
     where: { id: id },
+    select: publicTournamentSelect,
   });
 
   if (!tournament) return notFound();

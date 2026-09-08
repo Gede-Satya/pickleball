@@ -2,8 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse } from '@/lib/apiResponse'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { savePublicImageFile } from '@/lib/imageFile'
 
 export async function PUT(
   request: Request,
@@ -36,15 +35,11 @@ export async function PUT(
     if (removeImage === 'true') {
       updateData.image = null
     } else if (imageFile && imageFile.size > 0) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(imageFile.type)) {
-        return errorResponse('Gambar harus berupa JPG/PNG/WebP', 400, 'INVALID_IMAGE')
+      try {
+        updateData.image = await savePublicImageFile(imageFile, 'payment-methods')
+      } catch (e) {
+        return errorResponse(e instanceof Error ? e.message : 'Gambar tidak valid', 400, 'INVALID_IMAGE')
       }
-      const ext = imageFile.type === 'image/png' ? '.png' : imageFile.type === 'image/webp' ? '.webp' : '.jpg'
-      const filename = `payment-method-${Date.now()}${ext}`
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payment-methods')
-      await mkdir(uploadDir, { recursive: true })
-      await writeFile(path.join(uploadDir, filename), Buffer.from(await imageFile.arrayBuffer()))
-      updateData.image = `/uploads/payment-methods/${filename}`
     }
 
     const updated = await prisma.paymentMethodConfig.update({

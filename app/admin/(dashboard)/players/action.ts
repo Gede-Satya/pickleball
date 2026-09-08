@@ -4,9 +4,11 @@ import { prisma } from '@/lib/prisma'
 import type { Gender, MatchType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { requireAdminAction } from '@/lib/requireAdmin'
 
 // 1. Fungsi Hapus (Delete)
 export async function deletePlayer(formData: FormData) {
+  await requireAdminAction();
   const id = parseInt(formData.get('id') as string)
 
   await prisma.player.delete({
@@ -18,6 +20,7 @@ export async function deletePlayer(formData: FormData) {
 
 // 2. Fungsi Edit (Update)
 export async function updatePlayer(formData: FormData) {
+  await requireAdminAction();
   const id = parseInt(formData.get('id') as string)
   const fullName = formData.get('fullName') as string
   const schoolName = formData.get('schoolName') as string
@@ -46,6 +49,7 @@ export async function updatePlayer(formData: FormData) {
 
 // 3. Konfirmasi pembayaran (SINGLE → Player, DOUBLE/MIXED → Team)
 export async function confirmPayment(formData: FormData) {
+  await requireAdminAction();
   const type = formData.get('type') as 'player' | 'team'
   const id = parseInt(formData.get('id') as string)
 
@@ -66,6 +70,7 @@ export async function confirmPayment(formData: FormData) {
 
 // 4. Batalkan konfirmasi (kembali ke status belum bayar)
 export async function resetPayment(formData: FormData) {
+  await requireAdminAction();
   const type = formData.get('type') as 'player' | 'team'
   const id = parseInt(formData.get('id') as string)
 
@@ -88,6 +93,7 @@ type BulkItem = { id: number; type: 'player' | 'team' }
 
 // 5. Bulk konfirmasi pembayaran
 export async function bulkConfirmPayment(items: BulkItem[]) {
+  await requireAdminAction();
   const now = new Date()
   const playerIds = items.filter(i => i.type === 'player').map(i => i.id)
   const teamIds = items.filter(i => i.type === 'team').map(i => i.id)
@@ -110,6 +116,7 @@ export async function bulkConfirmPayment(items: BulkItem[]) {
 
 // 6. Bulk batalkan konfirmasi
 export async function bulkResetPayment(items: BulkItem[]) {
+  await requireAdminAction();
   const playerIds = items.filter(i => i.type === 'player').map(i => i.id)
   const teamIds = items.filter(i => i.type === 'team').map(i => i.id)
 
@@ -131,6 +138,7 @@ export async function bulkResetPayment(items: BulkItem[]) {
 
 // 7. Bulk hapus pemain/tim
 export async function bulkDeletePlayers(items: BulkItem[]) {
+  await requireAdminAction();
   const playerIds = items.filter(i => i.type === 'player').map(i => i.id)
   const teamIds = items.filter(i => i.type === 'team').map(i => i.id)
 

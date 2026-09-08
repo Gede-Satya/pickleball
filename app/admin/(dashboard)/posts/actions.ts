@@ -3,11 +3,13 @@
 import { PrismaClient } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { requireAdminAction } from '@/lib/requireAdmin'
 
 const prisma = new PrismaClient()
 
 // Fungsi Tambah Post/Artikel
 export async function createPost(formData: FormData) {
+  await requireAdminAction();
   const title = formData.get('title') as string
   const content = formData.get('content') as string
   const imageUrl = formData.get('image') as string
@@ -32,6 +34,7 @@ export async function createPost(formData: FormData) {
 
 // Fungsi Hapus Post/Artikel
 export async function deletePost(id: number) {
+  await requireAdminAction();
   await prisma.post.delete({
     where: { id }
   })
@@ -42,6 +45,7 @@ export async function deletePost(id: number) {
 }
 
 export async function updatePost(formData: FormData) {
+  await requireAdminAction();
   const id = parseInt(formData.get('id') as string)
   const title = formData.get('title') as string
   const content = formData.get('content') as string

@@ -50,3 +50,5 @@ next-env.d.ts
 /prisma/generated/
 /backup_pickleball.sql
 dev.log*
+server.log*
+server-err.log*

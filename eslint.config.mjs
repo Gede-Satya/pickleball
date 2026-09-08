@@ -13,7 +13,20 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "prisma/generated/**",
+    // Folder skill pihak ketiga & aset yang bukan bagian kode aplikasi.
+    "ui-ux-pro-max-skill/**",
+    // Skrip helper root (CommonJS / k6) — bukan bagian bundle aplikasi.
+    "clean-next.js",
+    "load-test.js",
+    "load-test-smoke.js",
   ]),
+  {
+    // Skrip helper (Node.js / CommonJS) diizinkan memakai require().
+    files: ["scripts/**/*.js", "scripts/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

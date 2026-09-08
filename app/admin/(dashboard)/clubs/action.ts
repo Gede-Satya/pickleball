@@ -4,11 +4,13 @@
 import { PrismaClient } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { requireAdminAction } from '@/lib/requireAdmin'
 
 const prisma = new PrismaClient()
 
 // Fungsi Tambah Klub
 export async function createClub(formData: FormData) {
+  await requireAdminAction();
   const name = formData.get('name') as string
   const description = formData.get('description') as string
   const location = formData.get('location') as string
@@ -25,6 +27,7 @@ export async function createClub(formData: FormData) {
 
 // Fungsi Hapus Klub
 export async function deleteClub(id: number) {
+  await requireAdminAction();
   await prisma.club.delete({
     where: { id }
   })
@@ -33,6 +36,7 @@ export async function deleteClub(id: number) {
 
 // Fungsi Edit/Update Klub
 export async function updateClub(id: number, formData: FormData) {
+  await requireAdminAction();
   const name = formData.get('name') as string
   const description = formData.get('description') as string
   const location = formData.get('location') as string

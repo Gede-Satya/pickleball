@@ -66,9 +66,9 @@ export async function POST(
   try {
     const body = await req.json().catch(() => ({}));
 
-    // Cek pool ini ada
+    // Cek pool ini ada & milik turnamen pada URL
     const pool = await prisma.pool.findUnique({ where: { id: Number(poolId) } });
-    if (!pool) {
+    if (!pool || pool.tournamentId !== tournamentId) {
       return errorResponse("Pool tidak ditemukan 🔍", 404, "NOT_FOUND");
     }
 

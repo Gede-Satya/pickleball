@@ -5,8 +5,10 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { buildCategoryInfo, validateGenderForMatchType } from '@/lib/tournamentCategory'
+import { requireAdminAction } from '@/lib/requireAdmin'
 
 export async function processTeamRegistration(prevState: unknown, formData: FormData) {
+  await requireAdminAction();
   let tournamentId: number = 0;
   try {
     tournamentId = parseInt(formData.get('tournamentId') as string)

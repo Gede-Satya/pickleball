@@ -72,6 +72,7 @@ export default function PaymentCheckPage() {
       const fd = new FormData();
       fd.append("type", item.type);
       fd.append("id", String(item.id));
+      fd.append("phoneNumber", phone);
       fd.append("paymentProof", file);
       await uploadPaymentProof(fd);
       showSuccess("Bukti pembayaran terkirim. Status menunggu konfirmasi panitia.", "Bukti Terkirim 🧾");

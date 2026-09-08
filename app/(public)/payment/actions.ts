@@ -80,19 +80,41 @@ export async function lookupPayments(phoneNumber: string): Promise<PaymentLookup
 export async function uploadPaymentProof(formData: FormData) {
   const type = formData.get('type') as 'player' | 'team'
   const id = parseInt(formData.get('id') as string)
+  const phoneNumber = (formData.get('phoneNumber') as string)?.trim()
 
-  if (!['player', 'team'].includes(type) || !id) {
+  if (!['player', 'team'].includes(type) || !id || !phoneNumber) {
     throw new Error("Data pendaftaran tidak valid")
   }
 
   const proof = await savePaymentProofFile(formData.get('paymentProof') as File | null)
 
   if (type === 'team') {
+    // Verifikasi kepemilikan: minimal satu pemain dalam tim memakai nomor ini
+    const team = await prisma.team.findUnique({
+      where: { id },
+      include: { players: { select: { phoneNumber: true } } },
+    })
+    if (!team || !team.players.some((p) => p.phoneNumber === phoneNumber)) {
+      throw new Error("Bukti pembayaran hanya dapat diunggah oleh pemilik pendaftaran")
+    }
+    if (team.paymentStatus === 'PAID') {
+      throw new Error("Pembayaran sudah dikonfirmasi oleh panitia")
+    }
     await prisma.team.update({
       where: { id },
       data: { paymentProof: proof, paymentStatus: 'UNPAID' },
     })
   } else {
+    const player = await prisma.player.findUnique({
+      where: { id },
+      select: { phoneNumber: true, paymentStatus: true },
+    })
+    if (!player || player.phoneNumber !== phoneNumber) {
+      throw new Error("Bukti pembayaran hanya dapat diunggah oleh pemilik pendaftaran")
+    }
+    if (player.paymentStatus === 'PAID') {
+      throw new Error("Pembayaran sudah dikonfirmasi oleh panitia")
+    }
     await prisma.player.update({
       where: { id },
       data: { paymentProof: proof, paymentStatus: 'UNPAID' },

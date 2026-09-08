@@ -4,13 +4,13 @@ export interface PaginationMeta {
   total: number;
 }
 
-export function successResponse(
+export function successResponse<T = unknown>(
   message: string,
-  data: any = {},
+  data: T = {} as T,
   status: number = 200,
   pagination?: PaginationMeta
 ) {
-  const response: any = {
+  const response: Record<string, unknown> = {
     success: true,
     message,
     data,

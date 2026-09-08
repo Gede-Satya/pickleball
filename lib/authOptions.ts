@@ -9,7 +9,11 @@ const attempts = new Map<string, { count: number; firstAt: number }>()
 
 function getClientIp(req?: { headers?: { get?: (name: string) => string | null } }): string {
   const fwd = req?.headers?.get?.('x-forwarded-for')
-  if (fwd) return fwd.split(',')[0].trim()
+  if (fwd) {
+    // Ambil IP terakhir — di chain proxy, IP paling kanan = true client
+    const parts = fwd.split(',').map((s) => s.trim()).filter(Boolean)
+    if (parts.length > 0) return parts[parts.length - 1]
+  }
   const realIp = req?.headers?.get?.('x-real-ip')
   return realIp || 'unknown'
 }
@@ -87,6 +91,7 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: 'jwt',
+    maxAge: 8 * 60 * 60, // 8 jam — cukup untuk admin, menurunkan risiko session hijack
   },
 
   pages: {

@@ -4,6 +4,7 @@ import { unlink } from "fs/promises";
 import path from "path";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/requireAdmin";
+import { publicTournamentSelect } from "@/lib/publicTournamentSelect";
 
 export async function GET(
   req: Request,
@@ -13,8 +14,12 @@ export async function GET(
   const resolvedParams = await params; 
 
   try {
+    const isAdmin = !!(await requireAdminSession());
+    // Hanya admin yang boleh menerima refereeCode/isCodeActive;
+    // publik menerima subset aman (tanpa kode akses wasit).
     const data = await prisma.tournament.findUnique({
       where: { id: Number(resolvedParams.id) },
+      select: isAdmin ? undefined : publicTournamentSelect,
     });
 
     if (!data) {

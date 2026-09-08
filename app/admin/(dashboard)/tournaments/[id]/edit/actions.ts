@@ -5,8 +5,10 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { parseGradeOptionsPayload } from '@/lib/tournamentGrades'
+import { requireAdminAction } from '@/lib/requireAdmin'
 
 export async function updateTournament(formData: FormData) { 
+  await requireAdminAction();
   const id = parseInt(formData.get('id') as string) 
   const name = formData.get('name') as string
   const category = formData.get('category') as string 

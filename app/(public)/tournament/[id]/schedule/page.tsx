@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import ScheduleClient from "./ScheduleClient";
 import LiveScorePoller from "@/components/LiveScorePoller";
+import { publicTournamentSelect } from "@/lib/publicTournamentSelect";
 
 
 export default async function PublicSchedulePage({
@@ -13,9 +14,10 @@ export default async function PublicSchedulePage({
   const { id } = await params;
   const tournamentId = Number(id);
 
-  const tournament = await prisma.tournament.findUnique({
+  const fullTournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    include: {
+    select: {
+      ...publicTournamentSelect,
       pools: {
         include: {
           members: {
@@ -45,7 +47,9 @@ export default async function PublicSchedulePage({
     },
   });
 
-  if (!tournament) return notFound();
+  if (!fullTournament) return notFound();
+
+  const tournament = fullTournament;
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-900 py-12 px-4">

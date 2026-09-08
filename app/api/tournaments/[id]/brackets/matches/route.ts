@@ -12,6 +12,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   await params;
+  const { id } = await params;
 
   if (!(await requireAdminSession())) return unauthorizedResponse();
 
@@ -21,6 +22,14 @@ export async function POST(
 
     if (!groupId) {
       return errorResponse("groupId wajib diisi ⚠️", 400, "BAD_REQUEST");
+    }
+
+    // Pastikan grup milik turnamen pada URL (scoping IDOR)
+    const group = await prisma.tournamentGroup.findUnique({
+      where: { id: Number(groupId) },
+    });
+    if (!group || group.tournamentId !== Number(id)) {
+      return errorResponse("Grup tidak ditemukan pada turnamen ini 🔍", 404, "NOT_FOUND");
     }
 
     // Ambil semua member di grup ini

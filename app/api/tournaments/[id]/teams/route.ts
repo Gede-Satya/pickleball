@@ -34,10 +34,33 @@ export async function GET(
         ...(matchType ? { matchType } : {}),
         ...(grade ? { grade } : {}),
       },
-      include: {
-        players: true,
+      select: {
+        id: true,
+        name: true,
+        matchType: true,
+        grade: true,
+        categoryKey: true,
+        tournamentId: true,
+        createdAt: true,
+        updatedAt: true,
+        players: {
+          select: {
+            id: true,
+            fullName: true,
+            schoolName: true,
+            gender: true,
+            grade: true,
+            matchType: true,
+            seedOrder: true,
+          },
+        },
         poolMembers: {
-          include: { pool: true },
+          select: {
+            id: true,
+            memberName: true,
+            poolId: true,
+            pool: { select: { id: true, label: true, poolCode: true, categoryKey: true } },
+          },
         },
       },
       orderBy: { createdAt: "asc" },

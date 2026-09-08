@@ -4,21 +4,22 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build",
+    "build": "node clean-next.js && next build",
+    "build:clean": "npm run build",
     "start": "next start",
     "lint": "eslint",
+    "test:smoke": "k6 run load-test-smoke.js",
+    "test:load": "k6 run load-test.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@g-loot/react-tournament-brackets": "^1.0.31-rc",
-    "@prisma/adapter-mariadb": "^7.5.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
-    "mariadb": "^3.5.2",
-    "next": "16.1.6",
-    "next-auth": "^4.24.13",
+    "next": "16.3.4",
+    "next-auth": "^4.24.15",
     "prisma": "^5.22.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -33,7 +34,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireAdminAction } from '@/lib/requireAdmin'
 
 export type ScheduleEntry = {
   type: 'pool' | 'knockout'
@@ -12,6 +13,7 @@ export type ScheduleEntry = {
 
 // Simpan jadwal (lapangan + waktu tanding) untuk banyak match sekaligus
 export async function saveSchedule(formData: FormData) {
+  await requireAdminAction();
   const tournamentId = parseInt(formData.get('tournamentId') as string)
   const raw = formData.get('entries') as string
 

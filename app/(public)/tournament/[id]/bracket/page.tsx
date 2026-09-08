@@ -5,6 +5,7 @@ import KnockoutBracketRender from "@/app/admin/(dashboard)/tournaments/[id]/brac
 import { PoolMatrixTable } from "@/app/admin/(dashboard)/tournaments/[id]/pools/PoolBracketMatrix";
 import { categoryKeyToLabel } from "@/lib/categoryLabel";
 import LiveScorePoller from "@/components/LiveScorePoller";
+import { publicTournamentSelect } from "@/lib/publicTournamentSelect";
 
 
 type PublicPool = {
@@ -47,9 +48,10 @@ export default async function PublicBracketPage({
   const { category: activeCategoryParam } = await searchParams;
   const tournamentId = Number(id);
 
-  const tournament = await prisma.tournament.findUnique({
+  const fullTournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    include: {
+    select: {
+      ...publicTournamentSelect,
       groups: {
         include: {
           members: { orderBy: { seedOrder: "asc" } },
@@ -68,7 +70,9 @@ export default async function PublicBracketPage({
     },
   });
 
-  if (!tournament) return notFound();
+  if (!fullTournament) return notFound();
+
+  const tournament = fullTournament;
 
   const pools: PublicPool[] = tournament.pools.map((pool) => ({
     id: pool.id,

@@ -13,6 +13,15 @@ function sanitize(value: string | number | null | undefined): string {
     .trim();
 }
 
+// Neutralisasi formula injection (Excel): nilai diawali '=', '+', '-', '@'
+// dianggap formula oleh Excel → di-prefix apostrof agar dibaca sebagai teks.
+function neutraliseExcelCell(value: string | number | null | undefined): string | number {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return value;
+  const s = sanitize(value);
+  return /^[=+\-@]/.test(s) ? `'${s}` : s;
+}
+
 export type ExportRow = (string | number)[];
 
 const NAVY = "0B2447";
@@ -110,7 +119,7 @@ export function exportToExcelMulti(
     const hasTopHeader = sheet.headers.length > 0;
     const sheetRows: (string | number)[][] = [
       ...(hasTopHeader ? [sheet.headers] : []),
-      ...sheet.rows.map((r) => r.map((c) => sanitize(c))),
+      ...sheet.rows.map((r) => r.map((c) => neutraliseExcelCell(c))),
     ];
     const ws = XLSX.utils.aoa_to_sheet(sheetRows);
     const maxCols = Math.max(1, ...sheetRows.map((r) => r.length));

@@ -8,6 +8,7 @@ import {
   generatePoolMatches,
   indexToPoolCode,
 } from '@/lib/tournamentCategory';
+import { requireAdminAction } from '@/lib/requireAdmin';
 
 export type ActionResult = { success: boolean; error?: string };
 
@@ -36,6 +37,7 @@ export async function createPoolAction(
   tournamentId: number,
   categoryKey: string
 ): Promise<ActionResult> {
+  await requireAdminAction();
   try {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -80,6 +82,7 @@ export async function assignMemberAction(
   memberId: number,
   poolId: number
 ): Promise<ActionResult> {
+  await requireAdminAction();
   try {
     const pool = await prisma.pool.findFirst({
       where: { id: poolId, tournamentId, categoryKey },
@@ -146,6 +149,7 @@ export async function moveMemberAction(
   poolMemberId: number,
   newPoolId: number
 ): Promise<ActionResult> {
+  await requireAdminAction();
   try {
     const target = await prisma.pool.findUnique({ where: { id: newPoolId } });
     if (!target) return { success: false, error: 'Pool tujuan tidak ditemukan' };
@@ -169,6 +173,7 @@ export async function moveMemberAction(
 export async function removeMemberAction(
   poolMemberId: number
 ): Promise<ActionResult> {
+  await requireAdminAction();
   try {
     const member = await prisma.poolMember.findUnique({
       where: { id: poolMemberId },
@@ -200,6 +205,7 @@ export async function resetCategoryAction(
   tournamentId: number,
   categoryKey: string
 ): Promise<ActionResult> {
+  await requireAdminAction();
   try {
     await prisma.pool.deleteMany({ where: { tournamentId, categoryKey } });
     revalidatePools(tournamentId);
@@ -217,6 +223,7 @@ export async function generateMatchesAction(
   tournamentId: number,
   categoryKey: string
 ): Promise<ActionResult> {
+  await requireAdminAction();
   try {
     const pools = await prisma.pool.findMany({
       where: { tournamentId, categoryKey },

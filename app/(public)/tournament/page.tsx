@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { publicTournamentSelect } from '@/lib/publicTournamentSelect';
 import TournamentClient from './TournamentClient'; // Import komponen yang baru kita buat
 
 
@@ -15,6 +16,7 @@ export default async function TournamentPage() {
       },
       deletedAt: null
     },
+    select: publicTournamentSelect,
     orderBy: {
       createdAt: 'desc'
     }
@@ -49,6 +51,7 @@ export default async function TournamentPage() {
       status: "COMPLETED",
       NOT: { deletedAt: null },
     },
+    select: publicTournamentSelect,
     orderBy: { deletedAt: "desc" },
   });
   const formattedArchived = archivedTournaments.map(formatTournament);

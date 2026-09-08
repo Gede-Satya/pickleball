@@ -4,11 +4,12 @@ import { TournamentStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { writeFile } from 'fs/promises' // Modul untuk menyimpan file
-import path from 'path'
 import { parseGradeOptionsPayload } from '@/lib/tournamentGrades'
+import { requireAdminAction } from '@/lib/requireAdmin'
+import { savePublicImageFile } from '@/lib/imageFile'
 
 export async function createTournament(formData: FormData) {
+  await requireAdminAction();
   const name = formData.get('name') as string
   const category = formData.get('category') as string // Ambil kategori
   const location = formData.get('location') as string
@@ -21,26 +22,13 @@ export async function createTournament(formData: FormData) {
   const refereeCode = (formData.get('refereeCode') as string)?.trim() || null
   const isCodeActive = formData.get('isCodeActive') === 'on'
 
-  // --- PROSES UPLOAD GAMBAR ---
-  const imageFile = formData.get('image') as File
-  let imagePath = null // Default kosong
+  // --- PROSES UPLOAD GAMBAR (validasi magic bytes + ukuran) ---
+  const imageFile = formData.get('image') as File | null
+  let imagePath: string | null = null // Default kosong
 
   // Jika admin memasukkan file gambar (ukurannya > 0)
   if (imageFile && imageFile.size > 0) {
-    // Ubah file menjadi buffer (format yang bisa dibaca Node.js)
-    const buffer = Buffer.from(await imageFile.arrayBuffer())
-    
-    // Buat nama file unik (gabungan timestamp + nama asli, spasi diganti underscore)
-    const filename = Date.now() + '-' + imageFile.name.replaceAll(' ', '_')
-    
-    // Tentukan lokasi penyimpanan (folder public/uploads)
-    const filepath = path.join(process.cwd(), 'public/uploads', filename)
-    
-    // Simpan file ke folder fisik
-    await writeFile(filepath, buffer)
-    
-    // Simpan path-nya untuk dimasukkan ke database MySQL
-    imagePath = `/uploads/${filename}`
+    imagePath = await savePublicImageFile(imageFile, "")
   }
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')

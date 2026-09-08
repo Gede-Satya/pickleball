@@ -71,7 +71,7 @@ export async function POST(
       },
     });
 
-    let qualifiedPlayers = groups.flatMap((g) => g.members);
+    const qualifiedPlayers = groups.flatMap((g) => g.members);
 
     if (qualifiedPlayers.length < 2) {
       return errorResponse("Minimal butuh 2 pemain (juara) untuk fase knockout ⚠️", 400, "BAD_REQUEST");
@@ -104,14 +104,13 @@ export async function POST(
     }
 
     // 4. Seeding konvensional untuk mempertemukan seed tinggi vs rendah di bracket
-    const seeds = Array.from({ length: bracketSize }, (_, i) => i);
     // Algoritma recursive standard untuk bracket seeding 1 vs 8, 2 vs 7 dst
     function getSeeding(numPlayers: number): number[] {
-      let rounds = Math.log2(numPlayers);
+      const rounds = Math.log2(numPlayers);
       let pls = [0, 1];
       for (let i = 1; i < rounds; i++) {
         const nextRound = [];
-        let length = pls.length * 2;
+        const length = pls.length * 2;
         for (let j = 0; j < pls.length; j++) {
           nextRound.push(pls[j]);
           nextRound.push(length - 1 - pls[j]);
@@ -133,19 +132,29 @@ export async function POST(
     const numRounds = Math.log2(bracketSize);
     
     // Struktur node per ronde
-    let roundsNodes: any[][] = [];
+    type RoundNode = {
+      player1Name: string | null;
+      player2Name: string | null;
+      status: "SCHEDULED" | "ONGOING" | "DONE";
+      winnerName: string | null;
+      score1: number | null;
+      score2: number | null;
+      roundText: string;
+      matchOrder: number;
+    };
+    const roundsNodes: RoundNode[][] = [];
     
     // Ronde 1 (Putaran Pertama)
-    const round1Matches = [];
+    const round1Matches: RoundNode[] = [];
     for (let i = 0; i < bracketSize; i += 2) {
       const p1 = arrangedNames[i];
       const p2 = arrangedNames[i + 1];
       
       // Jika salah satu BYE, pemenang otomatis adalah yang bukan BYE
-      let status = "SCHEDULED";
-      let winnerName = null;
-      let score1 = null;
-      let score2 = null;
+      let status: "SCHEDULED" | "ONGOING" | "DONE" = "SCHEDULED";
+      let winnerName: string | null = null;
+      const score1: number | null = null;
+      const score2: number | null = null;
 
       if (p1 === "BYE") {
         winnerName = p2;
@@ -173,7 +182,7 @@ export async function POST(
       const currentRoundMatchesCount = bracketSize / Math.pow(2, round + 1);
       const isFinal = currentRoundMatchesCount === 1;
       const isSemi = currentRoundMatchesCount === 2;
-      const roundMatches = [];
+      const roundMatches: RoundNode[] = [];
 
       for (let i = 0; i < currentRoundMatchesCount; i++) {
         roundMatches.push({
@@ -191,7 +200,7 @@ export async function POST(
     }
 
     // 7. Simpan semua dari Final (ronda paling akhir) mundur ke depan, agar kita bisa assign nextMatchId
-    const savedMatchesMapping = new Map(); // Untuk simpan ID match biar bisa connect dari child parent
+    const savedMatchesMapping = new Map<string, number>(); // Untuk simpan ID match biar bisa connect dari child parent
 
     for (let r = numRounds - 1; r >= 0; r--) {
         const matchesInRound = roundsNodes[r];
@@ -200,12 +209,12 @@ export async function POST(
              const mData = matchesInRound[i];
              
              // Cari nextMatchId kalau bukan final
-             let nextMatchId = null;
+             let nextMatchId: number | null = null;
              if (r < numRounds - 1) {
                  // Match parent (ronde selanjutnya) ada di index = Math.floor(i/2)
                  const parentMatchOrder = Math.floor(i / 2);
                  const parentKey = `R${r+1}-M${parentMatchOrder}`;
-                 nextMatchId = savedMatchesMapping.get(parentKey);
+                 nextMatchId = savedMatchesMapping.get(parentKey) ?? null;
              }
 
              // Simpan DB
@@ -218,7 +227,7 @@ export async function POST(
                      score1: mData.score1,
                      score2: mData.score2,
                      winnerName: mData.winnerName,
-                     status: mData.status as any,
+                     status: mData.status,
                      roundText: mData.roundText,
                      matchOrder: mData.matchOrder,
                      nextMatchId: nextMatchId,
@@ -291,7 +300,7 @@ export async function PUT(
 
     // Jika admin hanya merubah nama manual di bracket
     if (player1Name !== undefined || player2Name !== undefined) {
-         const dataUpdate: any = {};
+         const dataUpdate: { player1Name?: string | null; player2Name?: string | null } = {};
          if (player1Name !== undefined) dataUpdate.player1Name = player1Name || null;
          if (player2Name !== undefined) dataUpdate.player2Name = player2Name || null;
          await prisma.knockoutMatch.update({ where: { id: matchBefore.id }, data: dataUpdate });
