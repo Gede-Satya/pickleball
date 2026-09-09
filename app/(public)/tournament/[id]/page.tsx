@@ -5,6 +5,8 @@ import Link from "next/link";
 import { publicTournamentSelect } from "@/lib/publicTournamentSelect";
 import RegistrationModal from "./RegistrationModal"; // Import modal yang kita buat
 
+export const instant = false;
+
 export default async function TournamentDetailPage({
   params,
 }: {

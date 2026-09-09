@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import BannerForm from "../../BannerForm";
 import { updateBanner } from "../../actions";
 
+export const instant = false;
+
 export default async function EditBannerPage({
   params,
 }: {

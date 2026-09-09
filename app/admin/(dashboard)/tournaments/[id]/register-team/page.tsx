@@ -4,6 +4,8 @@ import RegistrationForm from './RegistrationForm'
 import Link from 'next/link'
 import { parseTournamentGrades } from '@/lib/tournamentGrades'
 
+export const instant = false;
+
 export default async function RegisterTeamPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params
   const tournamentId = parseInt(resolvedParams.id)

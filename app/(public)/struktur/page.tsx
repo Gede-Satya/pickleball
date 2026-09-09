@@ -5,6 +5,8 @@ type OrgTreeCustomNode = OrgNode & {
   photoUrl: string | null;
 };
 
+export const instant = false;
+
 export default async function PublicStrukturPage() {
   const items = await prisma.orgStructure.findMany({
     orderBy: { order: "asc" },

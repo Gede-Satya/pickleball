@@ -152,21 +152,26 @@ export default function RegistrationModal({ tournament }: { tournament: Registra
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
 
-            <button
-              onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-xl"
-            >
-              ✕
-            </button>
+            {/* Header sticky: judul + tombol tutup selalu terlihat saat konten panjang */}
+            <div className="flex items-start justify-between gap-4 px-6 md:px-8 pt-6 pb-3 border-b border-slate-100 shrink-0">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Form Pendaftaran</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Mendaftar untuk: <strong className="text-primary-700">{tournament.name}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="shrink-0 text-slate-400 hover:text-slate-700 font-bold text-xl"
+                aria-label="Tutup modal"
+              >
+                ✕
+              </button>
+            </div>
 
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Form Pendaftaran</h2>
-            <p className="text-sm text-slate-500 mb-6">
-              Mendaftar untuk: <strong className="text-primary-700">{tournament.name}</strong>
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto overscroll-contain px-6 md:px-8 py-4">
               <input type="hidden" name="tournamentId" value={tournament.id} />
 
               {/* Tipe Pertandingan & Grade */}
@@ -388,7 +393,7 @@ export default function RegistrationModal({ tournament }: { tournament: Registra
                         <img
                           src={selectedPM.image}
                           alt={selectedPM.label}
-                          className="max-w-[250px] max-h-[250px] object-contain rounded-xl border border-slate-200"
+                          className="max-w-[200px] max-h-[200px] object-contain rounded-xl border border-slate-200"
                         />
                       </div>
                     );

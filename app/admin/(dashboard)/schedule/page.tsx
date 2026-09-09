@@ -11,6 +11,8 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELED: "Dibatalkan",
 };
 
+export const instant = false;
+
 export default async function AdminSchedulePage() {
   const tournaments = await prisma.tournament.findMany({
     where: { deletedAt: null },

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { publicTournamentSelect } from '@/lib/publicTournamentSelect';
 import TournamentClient from './TournamentClient'; // Import komponen yang baru kita buat
 
+export const instant = false;
 
 export default async function TournamentPage() {
   // 1. Ambil data turnamen dari MySQL (Urutkan dari yang terbaru)

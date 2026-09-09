@@ -35,7 +35,7 @@ export default function Footer() {
           <h4 className="text-[#ffffff] font-bold mb-6 uppercase tracking-wider text-sm">Tautan Cepat</h4>
           <ul className="space-y-3 text-sm">
             <li>
-              <Link href="/" className="hover:text-amber-400 transition-colors flex items-center gap-2">
+              <Link href="/articles" className="hover:text-amber-400 transition-colors flex items-center gap-2">
                 <span className="text-amber-500">&bull;</span> Berita & Artikel
               </Link>
             </li>
@@ -47,16 +47,6 @@ export default function Footer() {
             <li>
               <Link href="/payment" className="hover:text-amber-400 transition-colors flex items-center gap-2">
                 <span className="text-amber-500">&bull;</span> Cek Pembayaran
-              </Link>
-            </li>
-            <li>
-              <Link href="#" className="hover:text-amber-400 transition-colors flex items-center gap-2">
-                <span className="text-amber-500">&bull;</span> Tentang Kami
-              </Link>
-            </li>
-            <li>
-              <Link href="#" className="hover:text-amber-400 transition-colors flex items-center gap-2">
-                <span className="text-amber-500">&bull;</span> Galeri Kegiatan
               </Link>
             </li>
           </ul>
@@ -81,13 +71,13 @@ export default function Footer() {
               <svg className="w-5 h-5 shrink-0 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h2.28a1 1 0 01.95.68l1.2 3.6a1 1 0 01-.4 1.15l-1.56 1.04a13.53 13.53 0 006.09 6.09l1.04-1.56a1 1 0 011.15-.4l3.6 1.2a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.72 21 3 14.28 3 6V5z" />
               </svg>
-              <span className="hover:text-amber-400 transition-colors cursor-pointer">+62 812 3456 7890</span>
+              <a href="tel:+6281234567890" className="hover:text-amber-400 transition-colors">+62 812 3456 7890</a>
             </li>
             <li className="flex items-center gap-3">
               <svg className="w-5 h-5 shrink-0 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span className="hover:text-amber-400 transition-colors cursor-pointer">pickleballdenpasar@gmail.com</span>
+              <a href="mailto:pickleballdenpasar@gmail.com" className="hover:text-amber-400 transition-colors">pickleballdenpasar@gmail.com</a>
             </li>
             
           </ul>

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import TournamentTable from "./TournamentTable";
 
+export const instant = false;
+
 export default async function TournamentsPage() {
   // Ambil turnamen aktif (belum diarsipkan), urutkan dari yang terbaru
   const tournaments = await prisma.tournament.findMany({

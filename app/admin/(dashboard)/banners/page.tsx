@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import DeleteBannerButton from "./DeleteBannerButton";
 import ToggleBannerButton from "./ToggleBannerButton";
 
+export const instant = false;
+
 export default function BannersPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">

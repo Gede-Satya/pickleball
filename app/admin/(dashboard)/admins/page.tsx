@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import AdminManagerClient from './AdminManagerClient'
 
+export const instant = false;
+
 export default async function AdminsPage() {
   const session = await getServerSession(authOptions)
   if (!session?.user || session.user.role !== 'SUPER_ADMIN') {

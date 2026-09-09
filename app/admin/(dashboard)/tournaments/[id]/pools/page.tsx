@@ -22,6 +22,8 @@ function parseCategoryKey(key: string): {
   return { grade, gender, matchType };
 }
 
+export const instant = false;
+
 export default async function PoolManagementPage({
   params,
 }: {

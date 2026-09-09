@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import BracketClient from "./BracketClient";
 
+export const instant = false;
+
 export default async function BracketPage({
   params,
 }: {

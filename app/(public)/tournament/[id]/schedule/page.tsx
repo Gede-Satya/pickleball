@@ -6,6 +6,8 @@ import LiveScorePoller from "@/components/LiveScorePoller";
 import { publicTournamentSelect } from "@/lib/publicTournamentSelect";
 
 
+export const instant = false;
+
 export default async function PublicSchedulePage({
   params,
 }: {

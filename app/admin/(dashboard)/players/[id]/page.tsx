@@ -4,6 +4,8 @@ import { updatePlayer } from '../action';
 import Link from 'next/link';
 import { ALL_TOURNAMENT_GRADES, gradeToLabel } from '@/lib/tournamentGrades';
 
+export const instant = false;
+
 export default function EditPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={<PlayerEditSkeleton />}>

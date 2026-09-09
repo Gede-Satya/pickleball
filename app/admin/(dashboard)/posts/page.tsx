@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import DeleteButton from "./DeleteButton";
 
+export const instant = false;
+
 export default async function PostsPage() {
   // Ambil semua post, urutkan dari yang terbaru
   const posts = await prisma.post.findMany({

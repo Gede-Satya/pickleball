@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import DeleteContactButton from "./DeleteContactButton";
 
+export const instant = false;
+
 export default async function AdminContactPage() {
   const contacts = await prisma.contact.findMany({
     orderBy: { createdAt: "desc" },

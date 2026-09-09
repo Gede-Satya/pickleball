@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+export const instant = false;
+
 export default async function PublicArticlesPage() {
   // 1. Ambil semua artikel yang sudah dipublish dari database
   const posts = await prisma.post.findMany({

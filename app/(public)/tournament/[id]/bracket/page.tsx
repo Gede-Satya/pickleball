@@ -37,6 +37,8 @@ type PublicPool = {
 
 const ALL_CATEGORY = "all";
 
+export const instant = false;
+
 export default async function PublicBracketPage({
   params,
   searchParams,

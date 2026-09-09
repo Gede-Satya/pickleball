@@ -4,6 +4,8 @@ import Link from "next/link";
 import PlayerTableClient, { PlayerRow, TournamentGroup } from "./PlayerTableClient";
 
 
+export const instant = false;
+
 export default async function PlayerListPage() {
   const players = await prisma.player.findMany({
     include: {

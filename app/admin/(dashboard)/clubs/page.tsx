@@ -3,6 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import DeleteClubButton from "./DeleteClubButton";
 
+export const instant = false;
+
 export default async function AdminClubsPage() {
   const clubs = await prisma.club.findMany({
     orderBy: { createdAt: "desc" },

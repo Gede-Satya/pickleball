@@ -5,6 +5,8 @@ import ScheduleEditor from "./ScheduleEditor";
 import ScheduleExportButtons from "./ScheduleExportButtons";
 
 
+export const instant = false;
+
 export default async function AdminScheduleEditorPage({
   params,
 }: {

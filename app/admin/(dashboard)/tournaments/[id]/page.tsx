@@ -42,6 +42,8 @@ const rupiah = new Intl.NumberFormat("id-ID", {
   maximumFractionDigits: 0,
 });
 
+export const instant = false;
+
 export default async function AdminTournamentDetailPage({
   params,
 }: {

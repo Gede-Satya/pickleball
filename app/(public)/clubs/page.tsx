@@ -1,6 +1,8 @@
 // app/(public)/clubs/page.tsx
 import { prisma } from "@/lib/prisma";
 
+export const instant = false;
+
 export default async function PublicClubsPage() {
   // Ambil semua data klub dari database, urutkan berdasarkan nama (A-Z)
   const clubs = await prisma.club.findMany({

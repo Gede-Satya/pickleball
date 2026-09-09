@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+export const instant = false;
+
 export default async function WasitLogPage() {
   // Ambil semua group matches yang sudah selesai dan ada refereeName
   const groupMatches = await prisma.groupMatch.findMany({

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import EditPostForm from "./EditPostForm"; // Kita akan buat file ini di Langkah 3
 
+export const instant = false;
+
 export default async function EditPostPage({
   params,
 }: {
