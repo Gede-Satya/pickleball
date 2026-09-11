@@ -11,9 +11,24 @@
 
 import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
+import { signWasitToken } from "@/lib/refereeAuth";
+import { isRateLimited, getClientIp } from "@/lib/rateLimit";
+
+// Batasi percobaan login wasit per IP: 10 percobaan dalam 5 menit.
+const WASIT_LOGIN_MAX = 10;
+const WASIT_LOGIN_WINDOW_MS = 5 * 60 * 1000;
 
 export async function POST(req: Request) {
   try {
+    const ipKey = `wasit-login:${getClientIp(req)}`;
+    if (isRateLimited(ipKey, WASIT_LOGIN_MAX, WASIT_LOGIN_WINDOW_MS)) {
+      return errorResponse(
+        "Terlalu banyak percobaan login. Coba lagi dalam 5 menit.",
+        429,
+        "RATE_LIMITED"
+      );
+    }
+
     const body = await req.json();
     const refereeName = typeof body?.refereeName === "string" ? body.refereeName.trim() : "";
     const refereeCode = typeof body?.refereeCode === "string" ? body.refereeCode.trim() : "";
@@ -65,15 +80,18 @@ export async function POST(req: Request) {
     }
 
     // ---- Berhasil ----
-    const session = {
+    // Tandatangani token JWT (berisi nama + kode + id turnamen).
+    // Client hanya menyimpan token ini; kode akses TIDAK lagi dikirim ke client.
+    const token = await signWasitToken({
       refereeName,
       refereeCode,
-      tournamentId: String(tournament.id),
-      loginAt: new Date().toISOString(),
-    };
+      tournamentId: tournament.id,
+    });
 
     return successResponse("Login berhasil. Selamat bertugas!", {
-      ...session,
+      token,
+      refereeName,
+      tournamentId: String(tournament.id),
       tournamentName: tournament.name,
       tournamentStatus: tournament.status,
     });

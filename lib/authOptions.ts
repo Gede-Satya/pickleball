@@ -1,47 +1,11 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
+import { isRateLimited, resetAttempts, getClientIp } from '@/lib/rateLimit'
 import bcrypt from 'bcryptjs'
 
 const MAX_ATTEMPTS = 5
 const WINDOW_MS = 60 * 1000
-const attempts = new Map<string, { count: number; firstAt: number }>()
-
-function getClientIp(req?: { headers?: { get?: (name: string) => string | null } }): string {
-  const fwd = req?.headers?.get?.('x-forwarded-for')
-  if (fwd) {
-    // Ambil IP terakhir — di chain proxy, IP paling kanan = true client
-    const parts = fwd.split(',').map((s) => s.trim()).filter(Boolean)
-    if (parts.length > 0) return parts[parts.length - 1]
-  }
-  const realIp = req?.headers?.get?.('x-real-ip')
-  return realIp || 'unknown'
-}
-
-function pruneExpired() {
-  const now = Date.now()
-  if (attempts.size > 1000) {
-    for (const [key, record] of attempts) {
-      if (now - record.firstAt > WINDOW_MS) attempts.delete(key)
-    }
-  }
-}
-
-function isRateLimited(key: string): boolean {
-  pruneExpired()
-  const now = Date.now()
-  const record = attempts.get(key)
-  if (!record || now - record.firstAt > WINDOW_MS) {
-    attempts.set(key, { count: 1, firstAt: now })
-    return false
-  }
-  record.count += 1
-  return record.count > MAX_ATTEMPTS
-}
-
-function resetAttempts(key: string) {
-  attempts.delete(key)
-}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -56,7 +20,7 @@ export const authOptions: NextAuthOptions = {
         const ipKey = `ip:${getClientIp(req)}`
         const emailKey = `email:${credentials?.email}`
 
-        if (isRateLimited(ipKey) || isRateLimited(emailKey)) {
+        if (isRateLimited(ipKey, MAX_ATTEMPTS, WINDOW_MS) || isRateLimited(emailKey, MAX_ATTEMPTS, WINDOW_MS)) {
           throw new Error('Terlalu banyak percobaan login. Coba lagi dalam 60 detik.')
         }
 

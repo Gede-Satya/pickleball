@@ -3,46 +3,59 @@
 // di localStorage. Dipakai oleh halaman login (app/wasit) dan
 // portal wasit (app/wasit/portal).
 //
-// Struktur sesi:
-// {
-//   refereeName: string,   // Nama wasit
-//   refereeCode: string,   // Kode akses turnamen (1 kode per turnamen)
-//   tournamentId: string,  // ID turnamen yang berhasil login
-//   loginAt: string        // Timestamp ISO kapan login
-// }
+// SEJAK PERBAIKAN KEAMANAN:
+// Client TIDAK lagi menyimpan kode akses (refereeCode) plaintext.
+// Yang disimpan HANYA token JWT yang ditandatangani server saat
+// login. Info tampilan (nama, id turnamen) di-decode client-side
+// dari token — tetapi validitas & nama otoritatif selalu
+// diverifikasi server-side pada setiap route update skor.
 // ============================================================
 
-export const WASIT_SESSION_KEY = "wasit-session";
+export const WASIT_SESSION_KEY = "wasit-token";
 
 export interface RefereeSession {
+  token: string;
   refereeName: string;
-  refereeCode: string;
   tournamentId: string;
-  loginAt: string;
 }
 
-// Simpan sesi login wasit ke localStorage
-export function saveRefereeSession(session: RefereeSession): void {
-  localStorage.setItem(WASIT_SESSION_KEY, JSON.stringify(session));
+// Decode payload JWT tanpa verifikasi (cukup untuk membaca info tampilan).
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
-// Baca sesi wasit dari localStorage — kembalikan null jika tidak ada / tidak valid
+// Simpan token sesi wasit ke localStorage
+export function saveRefereeSession({ token }: { token: string }): void {
+  localStorage.setItem(WASIT_SESSION_KEY, token);
+}
+
+// Baca sesi wasit dari localStorage — ambil nama & id dari payload JWT.
 export function getRefereeSession(): RefereeSession | null {
   try {
-    const raw = localStorage.getItem(WASIT_SESSION_KEY);
-    if (!raw) return null;
+    const token = localStorage.getItem(WASIT_SESSION_KEY);
+    if (!token) return null;
 
-    const parsed = JSON.parse(raw) as Partial<RefereeSession>;
-    if (!parsed.refereeName || !parsed.refereeCode || !parsed.tournamentId) {
-      return null;
-    }
+    const payload = decodeJwtPayload(token);
+    const name = typeof payload?.refereeName === "string" ? payload.refereeName : "";
+    const sub = payload?.sub;
+    const tid = typeof sub === "string" ? sub : "";
+    if (!name || !tid) return null;
 
-    return {
-      refereeName: String(parsed.refereeName),
-      refereeCode: String(parsed.refereeCode),
-      tournamentId: String(parsed.tournamentId),
-      loginAt: parsed.loginAt ?? new Date().toISOString(),
-    };
+    return { token, refereeName: name, tournamentId: tid };
   } catch {
     return null;
   }

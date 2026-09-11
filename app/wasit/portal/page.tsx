@@ -5,7 +5,7 @@
 // - Membaca sesi wasit dari localStorage (lihat lib/refereeSession).
 // - Proteksi sederhana: jika belum login → kembalikan ke /wasit.
 // - Terikat ke SATU turnamen sesuai sesi (tournamentId).
-// - Saat menyimpan skor, selalu kirim refereeCode + tournamentId
+// - Saat menyimpan skor, selalu kirim token JWT (Authorization header)
 //   agar server memvalidasi ulang akses wasit.
 // ============================================================
 
@@ -262,28 +262,28 @@ export default function WasitPortalPage() {
     if (!scoreTarget || tempScore1 === "" || tempScore2 === "") return;
     if (!session) return;
 
-    // Server memvalidasi ulang refereeCode + tournamentId
-    const authPayload = {
-      refereeName: session.refereeName,
-      refereeCode: session.refereeCode,
-      tournamentId: session.tournamentId,
-    };
+    // Server memvalidasi ulang token JWT wasit (bukan kode akses).
+    // Token dikirim via header Authorization; nama wasit selalu diambil
+    // dari token terverifikasi, bukan dari input client.
     const tournamentId = Number(session.tournamentId);
 
     setSubmitting(true);
     setSubmitMsg(null);
 
     try {
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.token}`,
+      };
       let res;
       if (scoreTarget.type === "group") {
         res = await fetch(`/api/tournaments/${tournamentId}/brackets/matches`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             matchId: scoreTarget.match.id,
             score1: Number(tempScore1),
             score2: Number(tempScore2),
-            ...authPayload,
           }),
         });
       } else if (scoreTarget.type === "pool") {
@@ -291,24 +291,22 @@ export default function WasitPortalPage() {
           `/api/tournaments/${tournamentId}/pools/${scoreTarget.pool.id}/matches`,
           {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               matchId: scoreTarget.match.id,
               score1: Number(tempScore1),
               score2: Number(tempScore2),
-              ...authPayload,
             }),
           }
         );
       } else {
         res = await fetch(`/api/tournaments/${tournamentId}/brackets/knockout`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             matchId: scoreTarget.match.id,
             score1: Number(tempScore1),
             score2: Number(tempScore2),
-            ...authPayload,
           }),
         });
       }

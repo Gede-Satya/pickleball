@@ -55,14 +55,9 @@ export default function WasitLoginPage() {
       });
       const data = await res.json();
 
-      if (res.ok && data.success && data.data) {
-        // Simpan sesi di localStorage agar tidak login ulang saat refresh
-        saveRefereeSession({
-          refereeName: data.data.refereeName,
-          refereeCode: data.data.refereeCode,
-          tournamentId: data.data.tournamentId,
-          loginAt: data.data.loginAt,
-        });
+      if (res.ok && data.success && data.data?.token) {
+        // Simpan HANYA token JWT (bukan kode akses) di localStorage.
+        saveRefereeSession({ token: data.data.token });
         router.replace("/wasit/portal");
       } else {
         setError(data.message || "Kode akses tidak valid.");

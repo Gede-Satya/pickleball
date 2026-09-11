@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
-import { verifyRefereeAccess } from "@/lib/refereeAuth";
+import { verifyRefereeToken } from "@/lib/refereeAuth";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/requireAdmin";
 
 // Fungsi untuk menentukan jumlah kelipatan 2 pembentuk bracket (2, 4, 8, 16...)
@@ -272,20 +272,24 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { matchId, player1Name, player2Name, score1, score2, reset, refereeName, refereeCode } = body;
+    const { matchId, player1Name, player2Name, score1, score2, reset } = body;
 
     if (!matchId) {
       return errorResponse("matchId wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     // Otorisasi:
-    // - wasit: kirim refereeCode → validasi akses kode wasit
-    // - admin: tanpa refereeCode → wajib sesi admin
-    if (refereeCode) {
-      const access = await verifyRefereeAccess(refereeCode, Number(id));
+    // - wasit: kirim token JWT (Authorization: Bearer ...) → validasi akses
+    // - admin: tanpa token → wajib sesi admin
+    // Nama wasit selalu diambil dari token terverifikasi, bukan dari client.
+    const authToken = req.headers.get("authorization");
+    let refereeName: string | null = null;
+    if (authToken) {
+      const access = await verifyRefereeToken(req, Number(id));
       if (!access.ok) {
         return errorResponse(access.message, access.status ?? 403, "REFEREE_UNAUTHORIZED");
       }
+      refereeName = access.refereeName;
     } else if (!(await requireAdminSession())) {
       return unauthorizedResponse();
     }

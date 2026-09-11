@@ -54,3 +54,4 @@ dev.log*
 dev-err.log*
 server.log*
 server-err.log*
+.next-server*.log

@@ -7,7 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/apiResponse";
-import { verifyRefereeAccess } from "@/lib/refereeAuth";
+import { verifyRefereeToken } from "@/lib/refereeAuth";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/requireAdmin";
 import {
   generatePoolMatches,
@@ -111,17 +111,18 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { matchId, score1, score2, reset, refereeCode } = body;
+    const { matchId, score1, score2, reset } = body;
 
     if (!matchId) {
       return errorResponse("matchId wajib diisi ⚠️", 400, "BAD_REQUEST");
     }
 
     // Otorisasi:
-    // - wasit: kirim refereeCode → validasi akses kode wasit
-    // - admin: tanpa refereeCode → wajib sesi admin
-    if (refereeCode) {
-      const access = await verifyRefereeAccess(refereeCode, tid);
+    // - wasit: kirim token JWT (Authorization: Bearer ...) → validasi akses
+    // - admin: tanpa token → wajib sesi admin
+    const authToken = req.headers.get("authorization");
+    if (authToken) {
+      const access = await verifyRefereeToken(req, tid);
       if (!access.ok) {
         return errorResponse(access.message, access.status ?? 403, "REFEREE_UNAUTHORIZED");
       }

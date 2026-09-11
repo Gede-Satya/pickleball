@@ -3,7 +3,30 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { savePaymentProofFile } from '@/lib/paymentProof'
+import { isRateLimited } from '@/lib/rateLimit'
+
+// Batasi pencarian pembayaran per IP: 5 request / 60 detik
+const PAYMENT_LOOKUP_MAX = 5
+const PAYMENT_LOOKUP_WINDOW_MS = 60 * 1000
+// Batasi upload bukti per nomor HP: 3 upload / 1 jam
+const PAYMENT_UPLOAD_MAX = 3
+const PAYMENT_UPLOAD_WINDOW_MS = 60 * 60 * 1000
+
+async function getRequestIp(): Promise<string> {
+  try {
+    const h = await headers()
+    const fwd = h.get('x-forwarded-for')
+    if (fwd) {
+      const parts = fwd.split(',').map((s) => s.trim()).filter(Boolean)
+      if (parts.length > 0) return parts[parts.length - 1]
+    }
+    return h.get('x-real-ip') || 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
 
 export type PaymentLookupItem = {
   type: 'player' | 'team'
@@ -19,6 +42,11 @@ export type PaymentLookupItem = {
 
 // Cari seluruh pendaftaran milik satu nomor WhatsApp
 export async function lookupPayments(phoneNumber: string): Promise<PaymentLookupItem[]> {
+  const ip = await getRequestIp()
+  if (isRateLimited(`payment-lookup:${ip}`, PAYMENT_LOOKUP_MAX, PAYMENT_LOOKUP_WINDOW_MS)) {
+    throw new Error("Terlalu banyak permintaan. Silakan tunggu beberapa saat.")
+  }
+
   const phone = (phoneNumber || '').trim()
   if (!phone) {
     throw new Error("Masukkan nomor WhatsApp Anda")
@@ -84,6 +112,11 @@ export async function uploadPaymentProof(formData: FormData) {
 
   if (!['player', 'team'].includes(type) || !id || !phoneNumber) {
     throw new Error("Data pendaftaran tidak valid")
+  }
+
+  // Batasi upload per nomor HP untuk mencegah spam/penyalahgunaan disk.
+  if (isRateLimited(`payment-upload:${phoneNumber}`, PAYMENT_UPLOAD_MAX, PAYMENT_UPLOAD_WINDOW_MS)) {
+    throw new Error("Terlalu banyak percobaan upload. Coba lagi nanti.")
   }
 
   const proof = await savePaymentProofFile(formData.get('paymentProof') as File | null)
