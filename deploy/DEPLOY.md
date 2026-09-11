@@ -53,6 +53,17 @@ crontab -e   # tambah: 0 3 * * * /var/www/pickleball/deploy/backup.sh
 curl https://DOMAIN_ANDA/api/health   # → {"status":"ok"}
 ```
 
+## Reset password admin (jika lupa / rotasi)
+
+Jalankan di folder app, sesuaikan dengan env yang benar:
+
+```bash
+RESET_ADMIN_EMAIL="superadmin@example.com" RESET_ADMIN_PASSWORD="pass_baru_kuat" node scripts/reset-admin-password.js
+```
+
+- Password minimal 8 karakter.
+- Aman dijalankan ulang; hanya mengubah password satu user.
+
 ## Catatan operasional
 
 - `public/uploads/` tidak di-commit ke git — file upload hidup di disk server,
