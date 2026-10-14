@@ -158,27 +158,33 @@ export default async function AdminTournamentDetailPage({
           <div className="flex flex-wrap items-center gap-3 mt-6">
             <Link
               href={`/admin/tournaments/${tournamentId}/pools`}
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-[#ffffff] rounded-lg text-sm font-bold transition-colors"
+              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-[#ffffff] rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
+              title="Tahap 1: Penempatan peserta ke grup pool dan jadwal pertandingan penyisihan"
             >
-              🏊 Kelola Pool
+              <span>📋</span>
+              <span>1. Fase Grup (Pool)</span>
             </Link>
             <Link
               href={`/admin/tournaments/${tournamentId}/brackets`}
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-[#ffffff] rounded-lg text-sm font-bold transition-colors"
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-[#ffffff] rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
+              title="Tahap 2: Bagan sistem gugur (knockout) dari juara & runner-up tiap pool"
             >
-              🌳 Kelola Bagan
+              <span>⚔️</span>
+              <span>2. Babak Gugur (Bagan)</span>
             </Link>
             <Link
               href={`/admin/schedule/${tournamentId}`}
-              className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-brand rounded-lg text-sm font-bold transition-colors"
+              className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-brand rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
             >
-              📅 Atur Jadwal
+              <span>📅</span>
+              <span>Atur Jadwal</span>
             </Link>
             <Link
               href={`/admin/tournaments/${tournamentId}/edit`}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
             >
-              ✏️ Edit
+              <span>✏️</span>
+              <span>Edit</span>
             </Link>
           </div>
         </div>
@@ -212,6 +218,29 @@ export default async function AdminTournamentDetailPage({
         </div>
       </div>
 
+      {/* PANDUAN ALUR TURNAMEN */}
+      <div className="bg-sky-50 dark:bg-slate-800/80 border border-sky-200 dark:border-slate-700 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            💡
+          </div>
+          <div>
+            <p className="font-bold text-slate-800 dark:text-slate-100">Alur Sistem Pertandingan Turnamen (2 Tahap):</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400">Tahap 1: Fase Grup (Pool)</span> untuk undian pool & penyisihan round-robin &rarr; <span className="font-semibold text-primary-700 dark:text-primary-300">Tahap 2: Babak Gugur (Knockout)</span> untuk bagan eliminasi juara pool menuju partai Final.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-end md:self-auto shrink-0 text-xs">
+          <Link href={`/admin/tournaments/${tournamentId}/pools`} className="px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-200 transition-colors">
+            📋 Buka Pool
+          </Link>
+          <Link href={`/admin/tournaments/${tournamentId}/brackets`} className="px-3 py-1.5 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-bold hover:bg-primary-200 transition-colors">
+            ⚔️ Buka Bagan Gugur
+          </Link>
+        </div>
+      </div>
+
       {/* STAT CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -222,25 +251,25 @@ export default async function AdminTournamentDetailPage({
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="text-sm text-slate-500 font-medium">🏊 Pool</p>
+          <p className="text-sm text-slate-500 font-medium">📋 Total Pool (Grup)</p>
           <p className="text-3xl font-black text-slate-900 mt-1">
             {tournament.pools.length}
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            {poolMatchCount} pertandingan total
+            {poolMatchCount} pertandingan penyisihan
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="text-sm text-slate-500 font-medium">⚔️ Fase Gugur</p>
+          <p className="text-sm text-slate-500 font-medium">⚔️ Babak Gugur (Knockout)</p>
           <p className="text-3xl font-black text-slate-900 mt-1">
             {tournament._count.knockoutMatches}
           </p>
-          <p className="text-xs text-slate-400 mt-1">pertandingan gugur</p>
+          <p className="text-xs text-slate-400 mt-1">pertandingan eliminasi</p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="text-sm text-slate-500 font-medium">✅ Pool Selesai</p>
+          <p className="text-sm text-slate-500 font-medium">✅ Pertandingan Pool Selesai</p>
           <p className="text-3xl font-black text-slate-900 mt-1">{poolDoneCount}</p>
-          <p className="text-xs text-slate-400 mt-1">dari {poolMatchCount} tanding</p>
+          <p className="text-xs text-slate-400 mt-1">dari {poolMatchCount} tanding pool</p>
         </div>
       </div>
 

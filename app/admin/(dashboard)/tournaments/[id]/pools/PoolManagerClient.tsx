@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   showConfirm,
@@ -210,6 +211,7 @@ export default function PoolManagerClient({
           <CategorySection
             key={cat.categoryKey}
             cat={cat}
+            tournamentId={tournament.id}
             pending={pending}
             onAssign={(member, poolId) =>
               run(
@@ -374,6 +376,7 @@ export default function PoolManagerClient({
 // ----------------------------------------------------------------
 function CategorySection({
   cat,
+  tournamentId,
   pending,
   onAssign,
   onMove,
@@ -388,6 +391,7 @@ function CategorySection({
   onResetScore,
 }: {
   cat: PoolManagerCategory;
+  tournamentId: number;
   pending: boolean;
   onAssign: (member: PoolManagerMember, poolId: number) => void;
   onMove: (memberId: number, newPoolId: number) => void;
@@ -722,54 +726,67 @@ function CategorySection({
           <button
             onClick={onCreate}
             disabled={pending}
-            className="px-3 py-1.5 rounded-lg bg-gold hover:bg-amber-500 disabled:opacity-50 text-brand text-xs font-bold transition-colors"
+            title="Tambah grup pool baru (Pool A, Pool B, dsb.)"
+            className="px-3 py-1.5 rounded-lg bg-gold hover:bg-amber-500 disabled:opacity-50 text-brand text-xs font-bold transition-colors shadow-sm"
           >
-            ➕ Buat Pool
+            ➕ Tambah Pool
           </button>
-            <button
-              onClick={handleGenerate}
-              disabled={pending}
-              className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
-            >
-              🎾 Generate Pertandingan
-            </button>
-            <button
-              onClick={handleGenerateBracket}
-              disabled={pending}
-              className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
-            >
-              ⚡ Buat Bagan Gugur
-            </button>
-            <button
-              onClick={openBracketModal}
-              disabled={pending || cat.pools.length === 0}
-              className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
-            >
-              🗂️ Atur Bagan Gugur
-            </button>
-            <button
-              onClick={handleFillBracket}
-              disabled={pending || cat.pools.length === 0}
-              className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
-            >
-              🔁 Isi Otomatis
-            </button>
-            <button
-              onClick={handleExportAllPoolsExcel}
-              disabled={pending || cat.pools.length === 0}
-              title="Export bagan semua pool (A, B, C, …) kategori ini dalam satu file Excel"
-              className="px-3 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-600 disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors"
-            >
-              📥 Export Bagan
-            </button>
-            <button
-              onClick={handleReset}
-              disabled={pending}
-              className="px-3 py-1.5 rounded-lg bg-[rgba(239,68,68,0.8)] hover:bg-[#EF4444] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors"
-            >
-              🗑️ Reset Pool
-            </button>
-          </div>
+          <button
+            onClick={handleGenerate}
+            disabled={pending}
+            title="Generate pertandingan round-robin untuk anggota pool"
+            className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
+          >
+            🎾 Generate Match Pool
+          </button>
+          <button
+            onClick={handleGenerateBracket}
+            disabled={pending}
+            title="Buat bagan knockout gugur otomatis dari peringkat 1 & 2 pool"
+            className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
+          >
+            ⚔️ Buat Bagan Gugur Otomatis
+          </button>
+          <button
+            onClick={openBracketModal}
+            disabled={pending || cat.pools.length === 0}
+            title="Atur skema peringkat pool yang lolos ke bagan gugur"
+            className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
+          >
+            🗂️ Atur Slot Bagan Gugur
+          </button>
+          <button
+            onClick={handleFillBracket}
+            disabled={pending || cat.pools.length === 0}
+            title="Isi slot bagan gugur otomatis dari hasil akhir peringkat pool"
+            className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ring-1 ring-[rgba(255,255,255,0.15)]"
+          >
+            🔁 Isi Slot Juara Pool
+          </button>
+          <button
+            onClick={handleExportAllPoolsExcel}
+            disabled={pending || cat.pools.length === 0}
+            title="Export matriks & klasemen semua pool kategori ini dalam satu file Excel"
+            className="px-3 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-600 disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors"
+          >
+            📥 Export Matriks Pool (Excel)
+          </button>
+          <Link
+            href={`/admin/tournaments/${tournamentId}/brackets`}
+            title="Buka Tahap 2: Babak Gugur & Bagan Pohon Turnamen"
+            className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-[#ffffff] text-xs font-bold transition-colors inline-flex items-center gap-1 shadow-sm"
+          >
+            <span>⚔️ Lihat Bagan Gugur &rarr;</span>
+          </Link>
+          <button
+            onClick={handleReset}
+            disabled={pending}
+            title="Reset dan hapus seluruh pool pada kategori ini"
+            className="px-3 py-1.5 rounded-lg bg-[rgba(239,68,68,0.8)] hover:bg-[#EF4444] disabled:opacity-50 text-[#ffffff] text-xs font-bold transition-colors ml-auto"
+          >
+            🗑️ Reset Pool
+          </button>
+        </div>
       </div>
 
       {/* Search per kategori */}

@@ -330,22 +330,22 @@ export default function TournamentTable({
                     ) : (
                       <>
                         <Link
-                          href={`/admin/tournaments/${tournament.id}/brackets`}
-                          className="inline-block px-3 py-1.5 bg-primary-50 dark:bg-primary-200/10 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-200/20 rounded-md font-medium transition-colors"
-                          title="Kelola Bagan Pertandingan"
+                          href={`/admin/tournaments/${tournament.id}/pools`}
+                          className="inline-block px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md font-semibold text-xs transition-colors"
+                          title="Tahap 1: Pembagian Pool & Babak Penyisihan Grup"
                         >
-                          🌳 Bagan
+                          📋 Fase Pool
                         </Link>
                         <Link
-                          href={`/admin/tournaments/${tournament.id}/pools`}
-                          className="inline-block px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md font-medium transition-colors"
-                          title="Kelola Pool & Penempatan Peserta"
+                          href={`/admin/tournaments/${tournament.id}/brackets`}
+                          className="inline-block px-3 py-1.5 bg-primary-50 dark:bg-primary-200/10 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-200/20 rounded-md font-semibold text-xs transition-colors"
+                          title="Tahap 2: Bagan Sistem Gugur (Knockout)"
                         >
-                          🏊 Pool
+                          ⚔️ Bagan Gugur
                         </Link>
                         <Link
                           href={`/admin/tournaments/${tournament.id}/edit`}
-                          className="inline-block px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md font-medium transition-colors"
+                          className="inline-block px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md font-medium text-xs transition-colors"
                         >
                           Edit
                         </Link>

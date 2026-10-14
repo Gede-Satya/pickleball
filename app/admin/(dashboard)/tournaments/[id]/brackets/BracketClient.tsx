@@ -542,22 +542,38 @@ export default function BracketClient({
   // ============================================================
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header & Quick Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            🏆 Bagan Turnamen
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-primary-100 text-primary-700">
+              Tahap 2
+            </span>
+            <span className="text-xs font-medium text-slate-400">Fase Knockout</span>
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
+            ⚔️ Babak Gugur &amp; Bagan Turnamen
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            {tournament.name} — Sistem Grup + Bagan Gugur
+          <p className="text-slate-500 text-sm mt-0.5">
+            {tournament.name} — Bagan eliminasi juara &amp; runner-up pool
           </p>
         </div>
-        <Link
-          href="/admin/tournaments"
-          className="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-semibold transition-all shadow-sm"
-        >
-          ← Kembali
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href={`/admin/tournaments/${tournament.id}/pools`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold transition-all"
+            title="Buka Tahap 1: Pembagian Pool & Babak Penyisihan Grup"
+          >
+            <span>📋</span>
+            <span>Ke Fase Grup (Pool)</span>
+          </Link>
+          <Link
+            href={`/admin/tournaments/${tournament.id}`}
+            className="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-all"
+          >
+            ← Detail Turnamen
+          </Link>
+        </div>
       </div>
 
       {/* Category Tabs */}
@@ -608,10 +624,17 @@ export default function BracketClient({
                 pools={activePoolStandings}
                 search={groupSearch}
               />
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-500">
-                🏊 Input skor pool dilakukan di halaman{" "}
-                <strong>Kelola Pool</strong> atau Portal Wasit. Bagan gugur di
-                bawah dibuat otomatis dari juara &amp; runner-up tiap pool.
+              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 text-sm text-emerald-900 dark:text-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl shrink-0">📋</span>
+                  <span>Input skor dan penempatan peserta dilakukan di <strong>Tahap 1: Fase Grup (Pool)</strong>. Bagan gugur di bawah otomatis diisi dari peringkat juara &amp; runner-up pool.</span>
+                </div>
+                <Link
+                  href={`/admin/tournaments/${tournament.id}/pools`}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-[#ffffff] rounded-xl text-xs font-bold whitespace-nowrap self-end sm:self-auto transition-colors shadow-sm"
+                >
+                  Buka Fase Grup (Pool) &rarr;
+                </Link>
               </div>
             </div>
           ) : (
@@ -697,12 +720,22 @@ export default function BracketClient({
                   </div>
                 </div>
               ) : (
-                <EmptyState
-                  dashed
-                  icon="⚔️"
-                  title="Belum Ada Bagan Gugur"
-                  description="Bagan akan tampil di sini setelah dibuat dari juara &amp; runner-up tiap pool di halaman Kelola Pool."
-                />
+                <div className="text-center py-12 px-6 bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
+                  <span className="text-4xl block mb-3">⚔️</span>
+                  <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">
+                    Bagan Gugur Belum Dibuat
+                  </h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-5">
+                    Bagan sistem gugur dibuat dari juara &amp; runner-up tiap pool. Silakan buka halaman <strong>Fase Grup (Pool)</strong> untuk mengisi peserta atau langsung membuat bagan gugur.
+                  </p>
+                  <Link
+                    href={`/admin/tournaments/${tournament.id}/pools`}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-[#ffffff] font-bold text-sm rounded-xl transition-all shadow-sm"
+                  >
+                    <span>📋 Buka Halaman Fase Grup (Pool)</span>
+                    <span>&rarr;</span>
+                  </Link>
+                </div>
               )}
             </div>
           )}

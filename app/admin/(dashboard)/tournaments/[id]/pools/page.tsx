@@ -182,14 +182,23 @@ export default async function PoolManagementPage({
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
-      {/* Breadcrumb */}
-      <Link
-        href={`/admin/tournaments/${tournamentId}`}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
-      >
-        <span aria-hidden className="text-base leading-none">←</span>
-        Kembali ke Detail Turnamen
-      </Link>
+      {/* Breadcrumb & Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href={`/admin/tournaments/${tournamentId}`}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+        >
+          <span aria-hidden className="text-base leading-none">←</span>
+          Kembali ke Detail Turnamen
+        </Link>
+        <Link
+          href={`/admin/tournaments/${tournamentId}/brackets`}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-[#ffffff] rounded-xl text-sm font-bold shadow-sm transition-all"
+        >
+          <span>⚔️ Lanjut ke Tahap 2: Babak Gugur (Knockout)</span>
+          <span>&rarr;</span>
+        </Link>
+      </div>
 
       {/* Hero: scoreboard header */}
       <div className="relative overflow-hidden rounded-3xl bg-brand text-[#ffffff] shadow-xl shadow-brand/20">
@@ -211,14 +220,14 @@ export default async function PoolManagementPage({
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="max-w-2xl">
               <span className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,255,255,0.1)] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#FBBF24] ring-1 ring-[rgba(255,255,255,0.1)]">
-                Manajemen Pool
+                Tahap 1 · Fase Grup (Pool)
               </span>
               <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
                 {tournament.name}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-[rgba(255,255,255,0.7)] sm:text-[15px]">
-                Buat pool, tempatkan peserta setelah TM / pengundian, lalu
-                generate pertandingan. Maksimal{' '}
+                Babak Penyisihan: Buat pool (A, B, C, dsb.), tempatkan peserta, dan jalankan pertandingan grup. Peringkat juara &amp; runner-up pool nantinya akan lolos ke{' '}
+                <span className="font-semibold text-[#FBBF24]">Tahap 2: Babak Gugur (Knockout)</span>. Maksimal{' '}
                 <span className="font-mono font-semibold text-[#FBBF24]">
                   {tournament.poolSize}
                 </span>{' '}

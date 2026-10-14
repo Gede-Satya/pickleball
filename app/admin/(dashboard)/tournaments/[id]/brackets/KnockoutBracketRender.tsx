@@ -20,12 +20,268 @@ const SingleEliminationBracket = dynamic(
     )
 );
 
-const Match = dynamic<MatchComponentProps>(
-  () =>
-    import("@g-loot/react-tournament-brackets").then(
-      (mod) => mod.Match as unknown as React.ComponentType<MatchComponentProps>
-    )
-);
+function CustomBracketMatch({
+  bottomHovered,
+  bottomParty,
+  bottomText,
+  bottomWon,
+  match,
+  onMatchClick,
+  onMouseEnter,
+  onMouseLeave,
+  onPartyClick,
+  topHovered,
+  topParty,
+  topText,
+  topWon,
+}: MatchComponentProps) {
+  const isMatchClickable = Boolean(match?.href || typeof onMatchClick === "function");
+  const isPartyClickable = typeof onPartyClick === "function";
+
+  const handleScoreBoxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isMatchClickable) {
+      onMatchClick?.({
+        match,
+        topWon,
+        bottomWon,
+        event: e as unknown as React.MouseEvent<HTMLAnchorElement>,
+      });
+    }
+  };
+
+  const isDone = match?.state === "DONE";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        alignItems: "stretch",
+        height: "100%",
+        fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        boxSizing: "border-box",
+        userSelect: "none",
+      }}
+    >
+      {/* Top Header: Round name & Action button */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          minHeight: "1.25rem",
+          marginBottom: "0.25rem",
+          padding: "0 2px",
+          fontSize: "11px",
+          color: "#94a3b8",
+        }}
+      >
+        <span
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {topText || ""}
+        </span>
+        {isMatchClickable && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onMatchClick?.({
+                match,
+                topWon,
+                bottomWon,
+                event: e as unknown as React.MouseEvent<HTMLAnchorElement>,
+              });
+            }}
+            style={{
+              cursor: "pointer",
+              background: isDone ? "rgba(16, 185, 129, 0.15)" : "rgba(56, 189, 248, 0.15)",
+              color: isDone ? "#34d399" : "#38bdf8",
+              border: `1px solid ${isDone ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.3)"}`,
+              borderRadius: "4px",
+              padding: "1px 6px",
+              fontWeight: 600,
+              fontSize: "10px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "3px",
+              transition: "all 0.15s ease",
+            }}
+            title={isDone ? "Klik untuk melihat / reset skor" : "Klik untuk atur skor"}
+          >
+            {isDone ? "✓ Selesai" : "⚙️ Skor"}
+          </button>
+        )}
+      </div>
+
+      {/* Styled Match Box */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: "1 1 auto",
+          justifyContent: "space-between",
+          borderRadius: "8px",
+          overflow: "hidden",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.35)",
+          border: topHovered || bottomHovered ? "1px solid #38bdf8" : "1px solid #1e293b",
+          transition: "border-color 0.2s ease",
+        }}
+      >
+        {/* Top Party Row */}
+        <div
+          onMouseEnter={() => onMouseEnter?.(topParty?.id)}
+          onMouseLeave={onMouseLeave}
+          onClick={() => isPartyClickable && onPartyClick?.(topParty, topWon)}
+          style={{
+            display: "flex",
+            height: "50%",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: topWon ? "#1e293b" : "#0f172a",
+            borderLeft: `4px solid ${topHovered ? "#38bdf8" : topWon ? "#10b981" : "#334155"}`,
+            borderBottom: "1px solid #1e293b",
+            cursor: isPartyClickable ? "pointer" : "default",
+            transition: "background 0.15s ease, border-color 0.15s ease",
+          }}
+          title={isPartyClickable ? "Klik untuk edit nama peserta" : undefined}
+        >
+          <div
+            style={{
+              paddingLeft: "10px",
+              paddingRight: "8px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontSize: "12px",
+              fontWeight: topWon ? 700 : 500,
+              color: topWon ? "#f8fafc" : topHovered ? "#ffffff" : "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              flex: "1 1 auto",
+            }}
+          >
+            {topWon && <span style={{ color: "#34d399", fontSize: "11px" }}>★</span>}
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {topParty?.name || "-"}
+            </span>
+          </div>
+          <div
+            onClick={handleScoreBoxClick}
+            style={{
+              display: "flex",
+              height: "100%",
+              width: "44px",
+              minWidth: "44px",
+              alignItems: "center",
+              justifyContent: "center",
+              background: topWon ? "rgba(16, 185, 129, 0.18)" : "#0b0f19",
+              borderLeft: "1px solid #1e293b",
+              fontSize: "13px",
+              fontWeight: 700,
+              color: topWon ? "#34d399" : "#64748b",
+              cursor: isMatchClickable ? "pointer" : "default",
+            }}
+            title={isMatchClickable ? "Klik untuk atur skor" : undefined}
+          >
+            {topParty?.resultText !== null && topParty?.resultText !== undefined
+              ? topParty.resultText
+              : "-"}
+          </div>
+        </div>
+
+        {/* Bottom Party Row */}
+        <div
+          onMouseEnter={() => onMouseEnter?.(bottomParty?.id)}
+          onMouseLeave={onMouseLeave}
+          onClick={() => isPartyClickable && onPartyClick?.(bottomParty, bottomWon)}
+          style={{
+            display: "flex",
+            height: "50%",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: bottomWon ? "#1e293b" : "#0f172a",
+            borderLeft: `4px solid ${bottomHovered ? "#38bdf8" : bottomWon ? "#10b981" : "#334155"}`,
+            cursor: isPartyClickable ? "pointer" : "default",
+            transition: "background 0.15s ease, border-color 0.15s ease",
+          }}
+          title={isPartyClickable ? "Klik untuk edit nama peserta" : undefined}
+        >
+          <div
+            style={{
+              paddingLeft: "10px",
+              paddingRight: "8px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontSize: "12px",
+              fontWeight: bottomWon ? 700 : 500,
+              color: bottomWon ? "#f8fafc" : bottomHovered ? "#ffffff" : "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              flex: "1 1 auto",
+            }}
+          >
+            {bottomWon && <span style={{ color: "#34d399", fontSize: "11px" }}>★</span>}
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {bottomParty?.name || "-"}
+            </span>
+          </div>
+          <div
+            onClick={handleScoreBoxClick}
+            style={{
+              display: "flex",
+              height: "100%",
+              width: "44px",
+              minWidth: "44px",
+              alignItems: "center",
+              justifyContent: "center",
+              background: bottomWon ? "rgba(16, 185, 129, 0.18)" : "#0b0f19",
+              borderLeft: "1px solid #1e293b",
+              fontSize: "13px",
+              fontWeight: 700,
+              color: bottomWon ? "#34d399" : "#64748b",
+              cursor: isMatchClickable ? "pointer" : "default",
+            }}
+            title={isMatchClickable ? "Klik untuk atur skor" : undefined}
+          >
+            {bottomParty?.resultText !== null && bottomParty?.resultText !== undefined
+              ? bottomParty.resultText
+              : "-"}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom text */}
+      <div
+        style={{
+          color: "#64748b",
+          flex: "0 0 none",
+          textAlign: "center",
+          marginTop: "0.25rem",
+          minHeight: "1.25rem",
+          fontSize: "10px",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {bottomText ?? " "}
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   matches: KnockoutMatch[];
@@ -137,7 +393,7 @@ export default function KnockoutBracketRender({ matches, onUpdateScore, onResetM
       {/* 2. Panggil BracketComponent, bukan SingleEliminationBracket */}
       <BracketComponent
         matches={mappedMatches}
-        matchComponent={(props) => <Match {...props} />}
+        matchComponent={CustomBracketMatch}
         svgWrapper={({ children }: { children: React.ReactNode }) => (
           <div>
             {children}
